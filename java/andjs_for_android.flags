@@ -1,0 +1,7 @@
+-keepattributes RuntimeVisible*Annotations
+-keepattributes AnnotationDefault
+
+-keep @interface com.wuruxu.andjs.CalledByJavascript
+-keepclasseswithmembers,includedescriptorclasses class * {
+  @com.wuruxu.andjs.CalledByJavascript <methods>;
+}

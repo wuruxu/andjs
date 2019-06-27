@@ -95,10 +95,10 @@ shared_library("libandjs_jni") {
     "//content/browser/android/java/gin_java_bound_object.cc",
     "//content/browser/android/java/gin_java_script_to_java_types_coercion.cc",
     "//content/renderer/v8_value_converter_impl.cc",
-    "java/gin_java_function_invocation_helper.cc",
-    "java/gin_java_bridge_object.cc",
-    "java/andjs_jni.cc",
-    "java/andjs_core.cc",
+    "gin_java_function_invocation_helper.cc",
+    "gin_java_bridge_object.cc",
+    "andjs_jni.cc",
+    "andjs_core.cc",
     andjs_jni_registration_header,
   ]
 
@@ -121,6 +121,7 @@ shared_library("libandjs_jni") {
 android_library("andjs_java") {
   java_files = [
     "java/src/com/wuruxu/andjs/AndJS.java",
+    "java/src/com/wuruxu/andjs/CalledByJavascript.java",
   ]
   deps = [
     "//base:base_java",
