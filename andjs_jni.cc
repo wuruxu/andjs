@@ -50,13 +50,13 @@ static void JNI_AndJS_InjectObject(JNIEnv* env, const JavaParamRef<jclass>& jcal
 
 static void JNI_AndJS_LoadJSBuf(JNIEnv* env, const JavaParamRef<jclass>& jcaller, const JavaParamRef<jstring>& j_jsbuf) {
   std::string jsbuf(ConvertJavaStringToUTF8(env, j_jsbuf));
-  logging::SetLogPrefix("AndJS");
-  //std::string _jsbuf("adb.info('This is a info jsbuf');");// adb.error('this is a error jsbuf');");
-  //std::string _jsbuf("adb.info(window);");
-  std::string _jsbuf("myobject.doLog('This is a myobject message');");
   if(jscore) {
-    jscore->Run(_jsbuf);
+    jscore->Run(jsbuf);
   }
+  //_jsbuf.assign("var msg = myobject.getMessage(); adb.info(msg);");
+  //if(jscore) {
+  //  jscore->Run(_jsbuf);
+  //}
 }
 
 static void JNI_AndJS_LoadJSFile(JNIEnv* env, const JavaParamRef<jclass>& jcaller, const JavaParamRef<jstring>& j_jsfile) {
