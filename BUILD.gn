@@ -158,6 +158,7 @@ android_library("andjs_sample_java") {
   java_files = [
     "sample_apk/java/src/com/wuruxu/andjs/sample/MainActivity.java",
     "sample_apk/java/src/com/wuruxu/andjs/sample/MyObject.java",
+    "sample_apk/java/src/com/wuruxu/andjs/sample/MyHome.java",
   ]
 
   android_manifest_for_lint = andjs_sample_manifest
@@ -213,4 +214,42 @@ android_apk("sample_apk") {
     "//base/android/proguard/chromium_code.flags",
     "//base/android/proguard/chromium_apk.flags",
   ]
+}
+  #   dist_aar("my_aar") {
+  #     deps = [ ":my_java_lib" ]
+  #     output = "$root_build_dir/MyLibrary.aar"
+  #   }
+dist_aar("andjs_aar") {
+  deps = [
+    ":andjs_assets",
+    ":andjs_java",
+    ":libandjs_jni",
+  ]
+
+  data = [
+    ":andjs_assets",
+  ]
+
+  if (use_v8_context_snapshot) {
+    deps += [ "//tools/v8_context_snapshot:v8_context_snapshot_assets" ]
+  } else {
+    deps += [ "//v8:v8_external_startup_data_assets" ]
+  }
+
+  native_libraries = [ "$root_build_dir/libandjs_jni.so" ]
+  #android_manifest = andjs_sample_manifest
+  #android_manifest_dep = ":andjs_sample_manifest"
+  #shared_libraries = [ ":libandjs_jni" ]
+  #command_line_flags_file = "andjs-command-line"
+  #jni_registration_header = andjs_jni_registration_header
+
+  if(!defined(proguard_configs)) {
+    proguard_configs = []
+  }
+  proguard_configs += [
+    "//andjs/java/andjs_for_android.flags",
+    "//base/android/proguard/chromium_code.flags",
+    "//base/android/proguard/chromium_apk.flags",
+  ]
+  output = "$root_build_dir/andjs-v1.0.0a.aar"
 }
