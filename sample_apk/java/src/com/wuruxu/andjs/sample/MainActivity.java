@@ -23,7 +23,11 @@ public class MainActivity extends AppCompatActivity {
 			@Override
 			public void onClick(View view) {
 				Log.i(TAG, "LoadJS onClick"); 
-				AndJS.loadJSBuf("This is a test jsbuf");
+				String jsbuf = "myobject.doLog('This is a JS string');";
+				jsbuf += "var msg = myobject.getMessage(); adb.info(msg);";
+				jsbuf += "var home = myobject.getMyHome(); home.printRect(0, 0, 512, 512);";
+				jsbuf += "var homemsg = home.getMessage(); adb.info(homemsg);";
+				AndJS.loadJSBuf(jsbuf);
 			}
 		});
 		obj = new MyObject();
