@@ -1,0 +1,18 @@
+diff --git a/BUILD.gn b/BUILD.gn
+index dbe4b22ba39a..4c6f12e658e5 100644
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -792,6 +792,13 @@ group("gn_all") {
+   }
+ }
+ 
++group("andjs") {
++  deps = [
++    "//andjs:sample_apk",
++  ]
++}
++
++
+ if ((is_linux || is_win) && enable_remoting && !use_ozone) {
+   # This group is used for network annotation check test.
+   group("shipped_binaries") {

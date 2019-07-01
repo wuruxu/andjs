@@ -1,0 +1,18 @@
+diff --git a/third_party/android_deps/BUILD.gn b/third_party/android_deps/BUILD.gn
+index 8aec5e9c6d32..0aff666d5876 100644
+--- a/third_party/android_deps/BUILD.gn
++++ b/third_party/android_deps/BUILD.gn
+@@ -5,6 +5,29 @@
+ import("//build/config/android/rules.gni")
+ 
+ # Library groups
++java_group("android_firebase_andjs_java") {
++  deps = [
++    ":com_google_firebase_firebase_core_java",
++    ":com_google_firebase_firebase_analytics_java",
++    ":com_google_firebase_firebase_common_java",
++    ":com_google_android_gms_play_services_measurement_api_java",
++    ":android_arch_lifecycle_viewmodel_java",
++  ]
++}
++
