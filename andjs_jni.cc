@@ -5,6 +5,7 @@
 #include "base/android/jni_utils.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_split.h"
+#include "base/files/file_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/post_task.h"
 #include "base/threading/thread_task_runner_handle.h"
@@ -53,16 +54,18 @@ static void JNI_AndJS_LoadJSBuf(JNIEnv* env, const JavaParamRef<jclass>& jcaller
   if(jscore) {
     jscore->Run(jsbuf);
   }
-  //_jsbuf.assign("var msg = myobject.getMessage(); adb.info(msg);");
-  //if(jscore) {
-  //  jscore->Run(_jsbuf);
-  //}
 }
 
-static void JNI_AndJS_LoadJSFile(JNIEnv* env, const JavaParamRef<jclass>& jcaller, const JavaParamRef<jstring>& j_jsfile) {
-  base::string16 jsfile(ConvertJavaStringToUTF16(env, j_jsfile));
-  logging::SetLogPrefix("AndJS");
-  LOG(INFO) << "LoadJSFile " << jsfile;
+static void JNI_AndJS_LoadJSFile(JNIEnv* env, const JavaParamRef<jclass>& jcaller, const JavaParamRef<jstring>& j_jspath) {
+  std::string jspath (ConvertJavaStringToUTF8(env, j_jspath));
+  std::string jsbuf;
+  //LOG(INFO) << "LoadJSPath " << jspath;
+  base::FilePath filepath(jspath);
+  if(base::ReadFileToString(filepath, &jsbuf)) {
+    if(jscore) {
+      jscore->Run(jsbuf);
+    }
+  }
 }
 
 static bool NativeInit(base::android::LibraryProcessType) {
