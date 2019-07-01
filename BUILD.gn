@@ -154,6 +154,7 @@ android_library("andjs_sample_java") {
     "//base:base_java",
     "//third_party/android_deps:android_support_v7_appcompat_java",
     "//third_party/android_deps:com_android_support_constraint_constraint_layout_java",
+    "//third_party/android_deps:android_firebase_andjs_java",
   ]
   java_files = [
     "sample_apk/java/src/com/wuruxu/andjs/sample/MainActivity.java",
@@ -196,9 +197,10 @@ android_apk("sample_apk") {
     ":andjs_sample_java",
     "//base:base_java",
   ]
+
   apk_name = "AndJS-Sample"
   version_code = "3"
-  version_name = "1.0.0c"
+  version_name = "1.0.0a"
   android_manifest = andjs_sample_manifest
   android_manifest_dep = ":andjs_sample_manifest"
   shared_libraries = [ ":libandjs_jni" ]
@@ -226,22 +228,7 @@ dist_aar("andjs_aar") {
     ":libandjs_jni",
   ]
 
-  data = [
-    ":andjs_assets",
-  ]
-
-  if (use_v8_context_snapshot) {
-    deps += [ "//tools/v8_context_snapshot:v8_context_snapshot_assets" ]
-  } else {
-    deps += [ "//v8:v8_external_startup_data_assets" ]
-  }
-
   native_libraries = [ "$root_build_dir/libandjs_jni.so" ]
-  #android_manifest = andjs_sample_manifest
-  #android_manifest_dep = ":andjs_sample_manifest"
-  #shared_libraries = [ ":libandjs_jni" ]
-  #command_line_flags_file = "andjs-command-line"
-  #jni_registration_header = andjs_jni_registration_header
 
   if(!defined(proguard_configs)) {
     proguard_configs = []
