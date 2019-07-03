@@ -1,7 +1,11 @@
 # andjs
 v8 js engine for android
 * How to integrate andjs         
-  *  add andjs aar into your project
+  *  1: add andjs aar into your project
+  *  2: call AndJS.Init to initialize first
+  *  3: then call AndJS.injectObject to inject java object, which will be used by javascript
+  *  4: final call AndJS.loadJSBuf(String jsbuf) to Run javascript in V8
+* Sample code 
 ```java
 import com.github.wuruxu.andjs.AndJS;
 public class MainActivity extends AppCompatActivity {
@@ -22,9 +26,6 @@ public class MainActivity extends AppCompatActivity {
 }
 
 //sample code of MyObject
-package com.github.wuruxu.andjs.sample;
-
-import android.util.Log;
 import com.github.wuruxu.andjs.CalledByJavascript;
 
 public class MyObject extends Object {
@@ -48,6 +49,25 @@ public class MyObject extends Object {
 	@CalledByJavascript
 	public MyHome getMyHome() {
 		return home;
+	}
+}
+
+//sample code of MyHome
+import com.github.wuruxu.andjs.CalledByJavascript;
+
+public class MyHome extends Object {
+	private static final String TAG = "MyHome";
+
+	public MyHome() {}
+
+	@CalledByJavascript
+	public void printRect(int x0, int y0, int x1, int y1) {
+		Log.i(TAG, " * x0 " + x0 + " y0 " + y0 + " x1 " + x1 + " y1 " + y1);
+	}
+
+	@CalledByJavascript
+	public String getMessage() {
+		return "This is a java string from MyHome";
 	}
 }
 ```
