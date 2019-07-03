@@ -1,7 +1,7 @@
 -keepattributes RuntimeVisible*Annotations
 -keepattributes AnnotationDefault
 
--keep @interface com.wuruxu.andjs.CalledByJavascript
+-keep @interface com.github.wuruxu.andjs.CalledByJavascript
 -keepclasseswithmembers,includedescriptorclasses class * {
-  @com.wuruxu.andjs.CalledByJavascript <methods>;
+  @com.github.wuruxu.andjs.CalledByJavascript <methods>;
 }

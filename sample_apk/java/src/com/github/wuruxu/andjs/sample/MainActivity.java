@@ -1,14 +1,13 @@
-package com.wuruxu.andjs.sample;
+package com.github.wuruxu.andjs.sample;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import com.wuruxu.andjs.R;
+//import com.github.wuruxu.andjs.sample.R;
 import android.util.Log;
 import android.view.View;
-import org.chromium.base.ContextUtils;
 
 import java.io.File;
-import com.wuruxu.andjs.AndJS;
+import com.github.wuruxu.andjs.AndJS;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.analytics.FirebaseAnalytics;

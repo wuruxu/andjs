@@ -78,7 +78,7 @@ if (is_android) {
 generate_jni("andjs_jni_headers") {
   jni_package = "andjs"
   sources = [
-    "java/src/com/wuruxu/andjs/AndJS.java",
+    "java/src/com/github/wuruxu/andjs/AndJS.java",
   ]
 }
 
@@ -120,14 +120,11 @@ shared_library("libandjs_jni") {
 
 android_library("andjs_java") {
   java_files = [
-    "java/src/com/wuruxu/andjs/AndJS.java",
-    "java/src/com/wuruxu/andjs/CalledByJavascript.java",
+    "java/src/com/github/wuruxu/andjs/AndJS.java",
+    "java/src/com/github/wuruxu/andjs/CalledByJavascript.java",
   ]
   deps = [
     "//base:base_java",
-  ]
-  srcjar_deps = [
-    #":net_errors_java",
   ]
 }
 
@@ -143,7 +140,7 @@ android_resources("andjs_sample_java_resources") {
     "//third_party/android_deps:android_support_v7_recyclerview_java",
     "//third_party/android_deps:com_android_support_constraint_constraint_layout_java",
   ]
-  custom_package = "com.wuruxu.andjs"
+  custom_package = "com.github.wuruxu.andjs.sample"
 }
 
 android_library("andjs_sample_java") {
@@ -151,15 +148,15 @@ android_library("andjs_sample_java") {
     ":andjs_sample_java_resources",
     ":andjs_sample_manifest",
     "//andjs:andjs_java",
-    "//base:base_java",
+    #"//base:base_java",
     "//third_party/android_deps:android_support_v7_appcompat_java",
     "//third_party/android_deps:com_android_support_constraint_constraint_layout_java",
     "//third_party/android_deps:android_firebase_andjs_java",
   ]
   java_files = [
-    "sample_apk/java/src/com/wuruxu/andjs/sample/MainActivity.java",
-    "sample_apk/java/src/com/wuruxu/andjs/sample/MyObject.java",
-    "sample_apk/java/src/com/wuruxu/andjs/sample/MyHome.java",
+    "sample_apk/java/src/com/github/wuruxu/andjs/sample/MainActivity.java",
+    "sample_apk/java/src/com/github/wuruxu/andjs/sample/MyObject.java",
+    "sample_apk/java/src/com/github/wuruxu/andjs/sample/MyHome.java",
   ]
 
   android_manifest_for_lint = andjs_sample_manifest
@@ -170,7 +167,7 @@ jinja_template("andjs_sample_manifest") {
   output = andjs_sample_manifest
 
   variables = [
-    "min_sdk_version=19",
+    "min_sdk_version=21",
     "target_sdk_version=$android_sdk_version",
   ]
 }
@@ -190,17 +187,27 @@ android_assets("andjs_assets") {
   }
 }
 
+#android_aar_prebuilt("andjs_aar_java") {
+#  aar_path = "$root_build_dir/andjs-v1.0.0a.aar"
+#  #info_path = "libs/android_arch_lifecycle_runtime/android_arch_lifecycle_runtime.info"
+#  deps = [
+#    #":android_arch_core_common_java",
+#    #":android_arch_lifecycle_common_java",
+#  ]
+#  ignore_assets = true
+#  ignore_native_libraries = true
+#}
+
 android_apk("sample_apk") {
   enable_multidex = true
   deps = [
     ":andjs_assets",
     ":andjs_sample_java",
-    "//base:base_java",
   ]
 
   apk_name = "AndJS-Sample"
-  version_code = "3"
-  version_name = "1.0.0a"
+  version_code = "4"
+  version_name = "1.0.0b"
   android_manifest = andjs_sample_manifest
   android_manifest_dep = ":andjs_sample_manifest"
   shared_libraries = [ ":libandjs_jni" ]
@@ -217,10 +224,47 @@ android_apk("sample_apk") {
     "//base/android/proguard/chromium_apk.flags",
   ]
 }
-  #   dist_aar("my_aar") {
-  #     deps = [ ":my_java_lib" ]
-  #     output = "$root_build_dir/MyLibrary.aar"
-  #   }
+
+#android_app_bundle_module("sample_base_app") {
+#  deps = [
+#    ":andjs_assets",
+#    ":andjs_sample_java",
+#    "//base:base_java",
+#  ]
+#
+#  is_base_module = true
+#  module_name = "SampleBaseApp"
+#  version_code = "3"
+#  version_name = "1.0.0a"
+#  min_sdk_version = 21
+#  android_manifest = andjs_sample_manifest
+#  android_manifest_dep = ":andjs_sample_manifest"
+#  shared_libraries = [ ":libandjs_jni" ]
+#  #command_line_flags_file = "andjs-command-line"
+#  #jni_registration_header = andjs_jni_registration_header
+#}
+#
+#android_app_bundle("sample_app") {
+#  base_module_target = ":sample_base_app"
+#  bundle_name = "AndJS-Sample"
+#  sign_bundle = true
+#  enable_multidex = true
+#  enable_language_splits = false
+#  proguard_enabled = true
+#  keystore_path = "//build/android/gh.keystore"
+#  keystore_password = "xj317318"
+#  keystore_name = "wuruxu"
+#
+#  if(!defined(proguard_configs)) {
+#    proguard_configs = []
+#  }
+#  proguard_configs += [
+#    "//andjs/java/andjs_for_android.flags",
+#    "//base/android/proguard/chromium_code.flags",
+#    "//base/android/proguard/chromium_apk.flags",
+#  ]
+#}
+
 dist_aar("andjs_aar") {
   deps = [
     ":andjs_assets",

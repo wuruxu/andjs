@@ -1,4 +1,4 @@
-package com.wuruxu.andjs;
+package com.github.wuruxu.andjs;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.library_loader.LibraryLoader;

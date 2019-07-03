@@ -1,4 +1,4 @@
-package com.wuruxu.andjs;
+package com.github.wuruxu.andjs;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

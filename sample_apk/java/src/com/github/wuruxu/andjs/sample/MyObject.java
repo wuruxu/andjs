@@ -1,7 +1,7 @@
-package com.wuruxu.andjs.sample;
+package com.github.wuruxu.andjs.sample;
 
 import android.util.Log;
-import com.wuruxu.andjs.CalledByJavascript;
+import com.github.wuruxu.andjs.CalledByJavascript;
 
 public class MyObject extends Object {
 	private static final String TAG = "MyObject";
