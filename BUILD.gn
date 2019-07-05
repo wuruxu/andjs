@@ -134,10 +134,7 @@ andjs_sample_manifest =
 android_resources("andjs_sample_java_resources") {
   resource_dirs = [ "sample_apk/java/res" ]
   deps = [
-    "//third_party/android_deps:android_support_design_java",
-    "//third_party/android_deps:android_support_v7_appcompat_java",
-    "//third_party/android_deps:android_support_v7_gridlayout_java",
-    "//third_party/android_deps:android_support_v7_recyclerview_java",
+    "//third_party/android_deps:com_android_support_appcompat_v7_java",
     "//third_party/android_deps:com_android_support_constraint_constraint_layout_java",
   ]
   custom_package = "com.github.wuruxu.andjs.sample"
@@ -147,10 +144,7 @@ android_library("andjs_sample_java") {
   deps = [
     ":andjs_sample_java_resources",
     ":andjs_sample_manifest",
-    "//andjs:andjs_java",
-    #"//base:base_java",
-    "//third_party/android_deps:android_support_v7_appcompat_java",
-    "//third_party/android_deps:com_android_support_constraint_constraint_layout_java",
+    ":andjs_java",
     "//third_party/android_deps:android_firebase_andjs_java",
   ]
   java_files = [
@@ -206,7 +200,7 @@ android_apk("sample_apk") {
   ]
 
   apk_name = "AndJS-Sample"
-  version_code = "4"
+  version_code = "5"
   version_name = "1.0.0b"
   android_manifest = andjs_sample_manifest
   android_manifest_dep = ":andjs_sample_manifest"
@@ -282,5 +276,5 @@ dist_aar("andjs_aar") {
     "//base/android/proguard/chromium_code.flags",
     "//base/android/proguard/chromium_apk.flags",
   ]
-  output = "$root_build_dir/andjs-v1.0.0a.aar"
+  output = "$root_build_dir/andjs-v1.0.0b-cr76.aar"
 }

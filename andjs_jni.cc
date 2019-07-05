@@ -33,14 +33,13 @@ using base::android::ConvertUTF8ToJavaString;
 
 static andjs::AndJSCore* jscore = NULL;
 
-static void JNI_AndJS_InitAndJS(JNIEnv* env, const JavaParamRef<jclass>& jcaller) {
+static void JNI_AndJS_InitAndJS(JNIEnv* env) {
   jscore = new andjs::AndJSCore();
   LOG(INFO) << "BuildInfo.device " << base::android::BuildInfo::GetInstance()->device();
   jscore->Init();
 }
 
-static void JNI_AndJS_InjectObject(JNIEnv* env, const JavaParamRef<jclass>& jcaller,
-                                   const JavaParamRef<jobject>& j_object,
+static void JNI_AndJS_InjectObject(JNIEnv* env, const JavaParamRef<jobject>& j_object,
                                    const JavaParamRef<jstring>& j_name,
                                    const JavaParamRef<jclass>& safe_annotation_clazz) {
   if(jscore != NULL) {
@@ -49,14 +48,14 @@ static void JNI_AndJS_InjectObject(JNIEnv* env, const JavaParamRef<jclass>& jcal
   }
 }
 
-static void JNI_AndJS_LoadJSBuf(JNIEnv* env, const JavaParamRef<jclass>& jcaller, const JavaParamRef<jstring>& j_jsbuf) {
+static void JNI_AndJS_LoadJSBuf(JNIEnv* env, const JavaParamRef<jstring>& j_jsbuf) {
   std::string jsbuf(ConvertJavaStringToUTF8(env, j_jsbuf));
   if(jscore) {
     jscore->Run(jsbuf);
   }
 }
 
-static void JNI_AndJS_LoadJSFile(JNIEnv* env, const JavaParamRef<jclass>& jcaller, const JavaParamRef<jstring>& j_jspath) {
+static void JNI_AndJS_LoadJSFile(JNIEnv* env, const JavaParamRef<jstring>& j_jspath) {
   std::string jspath (ConvertJavaStringToUTF8(env, j_jspath));
   std::string jsbuf;
   //LOG(INFO) << "LoadJSPath " << jspath;

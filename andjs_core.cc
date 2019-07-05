@@ -1,7 +1,7 @@
 #include "andjs/andjs_core.h"
 
 #include "base/threading/thread_task_runner_handle.h"
-#include "base/task/task_scheduler/task_scheduler.h"
+#include "base/threading/thread_task_runner_handle.h"
 #include "base/strings/string_util.h"
 #include "base/android/jni_weak_ref.h"
 #include "base/android/jni_android.h"
@@ -69,7 +69,6 @@ void AndJSCore::Init() {
   gin::V8Initializer::LoadV8Natives();
 #endif
   gin::IsolateHolder::Initialize(gin::IsolateHolder::kStrictMode,
-                                 gin::IsolateHolder::kStableV8Extras,
                                  gin::ArrayBufferAllocator::SharedInstance());
 
   instance_ = CreateIsolateHolder();
@@ -93,7 +92,7 @@ void AndJSCore::Shutdown() {
   instance_.reset();
 }
 
-void AndJSCore::InjectJSLog() {
+bool AndJSCore::InjectJSLog() {
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
 
@@ -101,10 +100,11 @@ void AndJSCore::InjectJSLog() {
   v8::Local<v8::Object> global = context->Global();
   gin::Handle<AdbLog> obj = AdbLog::Create(isolate_);
   std::string object_name("adb");
-  global->Set(gin::StringToV8(isolate_, object_name), obj.ToV8());
+  v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, object_name), obj.ToV8());
+  return !result.IsNothing() && result.FromJust();
 }
 
-void AndJSCore::InjectObject(std::string& name, const base::android::JavaRef<jobject>& jobject,
+bool AndJSCore::InjectObject(std::string& name, const base::android::JavaRef<jobject>& jobject,
                              const base::android::JavaRef<jclass>& safe_annotation_clazz) {
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
@@ -119,8 +119,10 @@ void AndJSCore::InjectObject(std::string& name, const base::android::JavaRef<job
   GinJavaBridgeObject* object = new GinJavaBridgeObject(isolate_, bound_object);
   gin::Handle<GinJavaBridgeObject> bridge_object = gin::CreateHandle(isolate_, object);
   if(!bridge_object.IsEmpty()) {
-    global->Set(gin::StringToV8(isolate_, name), bridge_object.ToV8());
+    v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, name), bridge_object.ToV8());
+    return !result.IsNothing() && result.FromJust();
   }
+  return false;
 }
 
 void AndJSCore::Run(std::string& jsbuf) {

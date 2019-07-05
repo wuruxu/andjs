@@ -21,7 +21,7 @@ class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
     void Init();
     void Shutdown();
 
-    void InjectObject(std::string& name, const base::android::JavaRef<jobject>& object,
+    bool InjectObject(std::string& name, const base::android::JavaRef<jobject>& object,
                       const base::android::JavaRef<jclass>& safe_annotation_clazz);
     void Run(std::string& jsbuf);
 
@@ -30,7 +30,7 @@ class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
 
   private:
     virtual std::unique_ptr<gin::IsolateHolder> CreateIsolateHolder() const;
-    void InjectJSLog();
+    bool InjectJSLog();
     v8::Isolate* isolate_;
     std::unique_ptr<gin::IsolateHolder> instance_;
     v8::Persistent<v8::Context> context_;

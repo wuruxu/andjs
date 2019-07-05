@@ -2,7 +2,6 @@ package com.github.wuruxu.andjs.sample;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-//import com.github.wuruxu.andjs.sample.R;
 import android.util.Log;
 import android.view.View;
 
