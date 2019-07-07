@@ -276,5 +276,5 @@ dist_aar("andjs_aar") {
     "//base/android/proguard/chromium_code.flags",
     "//base/android/proguard/chromium_apk.flags",
   ]
-  output = "$root_build_dir/andjs-v1.0.0b-cr76.aar"
+  output = "$root_build_dir/andjs-v1.0.0c-cr76.aar"
 }
