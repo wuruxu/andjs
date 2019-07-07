@@ -200,8 +200,8 @@ android_apk("sample_apk") {
   ]
 
   apk_name = "AndJS-Sample"
-  version_code = "5"
-  version_name = "1.0.0b"
+  version_code = "6"
+  version_name = "1.0.0c"
   android_manifest = andjs_sample_manifest
   android_manifest_dep = ":andjs_sample_manifest"
   shared_libraries = [ ":libandjs_jni" ]
