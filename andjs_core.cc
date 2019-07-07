@@ -4,7 +4,8 @@
 #include "base/threading/thread_task_runner_handle.h"
 #include "base/strings/string_util.h"
 #include "base/android/jni_weak_ref.h"
-#include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
+#include "base/files/file_util.h"
 #include "gin/array_buffer.h"
 #include "gin/try_catch.h"
 #include "gin/v8_initializer.h"
@@ -19,6 +20,12 @@
 using v8::Context;
 using v8::Local;
 using v8::HandleScope;
+
+using base::android::JavaParamRef;
+using base::android::ScopedJavaLocalRef;
+using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertJavaStringToUTF16;
+using base::android::ConvertUTF8ToJavaString;
 
 namespace andjs {
 
@@ -104,8 +111,37 @@ bool AndJSCore::InjectJSLog() {
   return !result.IsNothing() && result.FromJust();
 }
 
-bool AndJSCore::InjectObject(std::string& name, const base::android::JavaRef<jobject>& jobject,
-                             const base::android::JavaRef<jclass>& safe_annotation_clazz) {
+bool AndJSCore::InjectObject(JNIEnv* env,
+                             const base::android::JavaParamRef<jobject>& jcaller,
+                             const base::android::JavaParamRef<jobject>& jobject,
+                             const base::android::JavaParamRef<jstring>& jname,
+                             const base::android::JavaParamRef<jclass>&  annotation_clazz) {
+  std::string name(ConvertJavaStringToUTF8(env, jname));
+  return InjectObject(name, jobject, annotation_clazz);
+}
+
+void AndJSCore::LoadJSBuf(JNIEnv* env,
+                          const base::android::JavaParamRef<jobject>& jcaller,
+                          const base::android::JavaParamRef<jstring>& jsbuf) {
+  std::string buf(ConvertJavaStringToUTF8(env, jsbuf));
+  Run(buf);
+}
+
+void AndJSCore::LoadJSFile(JNIEnv* env,
+                           const base::android::JavaParamRef<jobject>& jcaller,
+                           const base::android::JavaParamRef<jstring>& jsfile) {
+    std::string jspath (ConvertJavaStringToUTF8(env, jsfile));
+    std::string buf;
+
+    base::FilePath filepath(jspath);
+    if(base::ReadFileToString(filepath, &buf)) {
+      Run(buf);
+    }
+}
+
+bool AndJSCore::InjectObject(std::string& name,
+                             const base::android::JavaRef<jobject>& jobject,
+                             const base::android::JavaRef<jclass>&  annotation_clazz) {
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
 
@@ -115,7 +151,7 @@ bool AndJSCore::InjectObject(std::string& name, const base::android::JavaRef<job
   JNIEnv* env = base::android::AttachCurrentThread();
   JavaObjectWeakGlobalRef ref(env, jobject.obj());
 
-  scoped_refptr<content::GinJavaBoundObject> bound_object = content::GinJavaBoundObject::CreateNamed(ref, safe_annotation_clazz);
+  scoped_refptr<content::GinJavaBoundObject> bound_object = content::GinJavaBoundObject::CreateNamed(ref, annotation_clazz);
   GinJavaBridgeObject* object = new GinJavaBridgeObject(isolate_, bound_object);
   gin::Handle<GinJavaBridgeObject> bridge_object = gin::CreateHandle(isolate_, object);
   if(!bridge_object.IsEmpty()) {

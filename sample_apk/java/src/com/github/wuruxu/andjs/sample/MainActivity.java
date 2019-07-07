@@ -15,6 +15,7 @@ public class MainActivity extends AppCompatActivity {
 	private static final String TAG = "AndJS";
 	private MyObject obj;
 	private FirebaseAnalytics mFirebaseAnalytics;
+	private AndJS mJSInstance;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,7 +33,7 @@ public class MainActivity extends AppCompatActivity {
 		bundle.putString("Object", "MainActivity");
 		mFirebaseAnalytics.logEvent("onCreate", bundle);
 
-		AndJS.Init(this);
+		mJSInstance = new AndJS(this);
 		findViewById(R.id.loadjs_button).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
@@ -48,15 +49,15 @@ public class MainActivity extends AppCompatActivity {
 				if(samplefile.exists() && samplefile.length() > 0) {
 					is_samplejs = true;
 					bundle.putString("LoadJS", "sample.js");
-					AndJS.loadJSFile("/data/local/tmp/sample.js");
+					mJSInstance.loadJSFile("/data/local/tmp/sample.js");
 				} else {
-					AndJS.loadJSBuf(jsbuf);
 					bundle.putString("LoadJS", "jsbuf");
+					mJSInstance.loadJSBuf(jsbuf);
 				}
 				mFirebaseAnalytics.logEvent("onClick", bundle);
 			}
 		});
 		obj = new MyObject();
-		AndJS.injectObject(obj, "myobject", null);
+		mJSInstance.injectObject(obj, "myobject", null);
     }
 }

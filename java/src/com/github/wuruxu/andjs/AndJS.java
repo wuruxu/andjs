@@ -5,34 +5,38 @@ import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.ProcessInitException;
 import org.chromium.base.library_loader.LibraryProcessType;
 import java.lang.annotation.Annotation;
+import org.chromium.base.annotations.JNINamespace;
 import android.util.Log;
 import android.content.Context;
 
+@JNINamespace("andjs")
 public class AndJS {
-	public static void Init(Context context) {
+	private long mNativeJSCore;
+
+	public AndJS(Context context) {
 		ContextUtils.initApplicationContext(context);
 		try {
         	LibraryLoader.getInstance().ensureInitialized(LibraryProcessType.PROCESS_CHILD);
 		} catch( ProcessInitException pie) {
         	Log.e("AndJS" , "Unable to load native libraries.", pie);
 		}
-		nativeInitAndJS();
+		mNativeJSCore = nativeInitAndJS();
 	}
 
-	public static void loadJSBuf(String jsbuf) {
-		nativeLoadJSBuf(jsbuf);
+	public void loadJSBuf(String jsbuf) {
+		nativeLoadJSBuf(mNativeJSCore, jsbuf);
 	}
 
-	public static void loadJSFile(String jsfile) {
-		nativeLoadJSFile(jsfile);
+	public void loadJSFile(String jsfile) {
+		nativeLoadJSFile(mNativeJSCore, jsfile);
 	}
 
-	public static void injectObject(Object obj, String name, Class<? extends Annotation> requiredAnnotation) {
-		nativeInjectObject(obj, name, requiredAnnotation);
+	public void injectObject(Object obj, String name, Class<? extends Annotation> requiredAnnotation) {
+		nativeInjectObject(mNativeJSCore, obj, name, requiredAnnotation);
 	}
 
-	private static native void nativeInjectObject(Object obj, String name, Class requiredAnnotation);
-	private static native void nativeInitAndJS();
-	private static native void nativeLoadJSBuf(String jsbuf);
-	private static native void nativeLoadJSFile(String jsfile);
+	private native long nativeInitAndJS();
+	private native boolean nativeInjectObject(long nativeAndJSCore, Object obj, String name, Class requiredAnnotation);
+	private native void nativeLoadJSBuf(long nativeAndJSCore, String jsbuf);
+	private native void nativeLoadJSFile(long nativeAndJSCore, String jsfile);
 }

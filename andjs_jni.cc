@@ -5,7 +5,6 @@
 #include "base/android/jni_utils.h"
 #include "base/android/jni_string.h"
 #include "base/strings/string_split.h"
-#include "base/files/file_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/post_task.h"
 #include "base/threading/thread_task_runner_handle.h"
@@ -24,48 +23,20 @@
 #include "andjs/android/andjs_jni_registration.h"
 #include "jni/AndJS_jni.h"
 
-using namespace std;
+namespace andjs {
+
 using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
-using base::android::ConvertJavaStringToUTF8;
-using base::android::ConvertJavaStringToUTF16;
-using base::android::ConvertUTF8ToJavaString;
 
-static andjs::AndJSCore* jscore = NULL;
-
-static void JNI_AndJS_InitAndJS(JNIEnv* env) {
-  jscore = new andjs::AndJSCore();
+static jlong JNI_AndJS_InitAndJS(JNIEnv* env,
+                                 const base::android::JavaParamRef<jobject>& jcaller) {
+  AndJSCore* jscore = NULL;
+  jscore = new AndJSCore();
   LOG(INFO) << "BuildInfo.device " << base::android::BuildInfo::GetInstance()->device();
   jscore->Init();
+  return reinterpret_cast<intptr_t>(jscore);
 }
 
-static void JNI_AndJS_InjectObject(JNIEnv* env, const JavaParamRef<jobject>& j_object,
-                                   const JavaParamRef<jstring>& j_name,
-                                   const JavaParamRef<jclass>& safe_annotation_clazz) {
-  if(jscore != NULL) {
-    std::string name(ConvertJavaStringToUTF8(env, j_name));
-    jscore->InjectObject(name, j_object, safe_annotation_clazz);
-  }
-}
-
-static void JNI_AndJS_LoadJSBuf(JNIEnv* env, const JavaParamRef<jstring>& j_jsbuf) {
-  std::string jsbuf(ConvertJavaStringToUTF8(env, j_jsbuf));
-  if(jscore) {
-    jscore->Run(jsbuf);
-  }
-}
-
-static void JNI_AndJS_LoadJSFile(JNIEnv* env, const JavaParamRef<jstring>& j_jspath) {
-  std::string jspath (ConvertJavaStringToUTF8(env, j_jspath));
-  std::string jsbuf;
-
-  base::FilePath filepath(jspath);
-  if(base::ReadFileToString(filepath, &jsbuf)) {
-    if(jscore) {
-      jscore->Run(jsbuf);
-    }
-  }
-}
+} //namespace andjs
 
 static bool NativeInit(base::android::LibraryProcessType) {
   // Setup a working test environment for the network service in case it's used.
