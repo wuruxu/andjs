@@ -139,6 +139,11 @@ void AndJSCore::LoadJSFile(JNIEnv* env,
     }
 }
 
+void AndJSCore::Shutdown(JNIEnv* env,
+                          const base::android::JavaParamRef<jobject>& jcaller) {
+  Shutdown();
+}
+
 bool AndJSCore::InjectObject(std::string& name,
                              const base::android::JavaRef<jobject>& jobject,
                              const base::android::JavaRef<jclass>&  annotation_clazz) {

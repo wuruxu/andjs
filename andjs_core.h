@@ -20,7 +20,6 @@ class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
     ~AndJSCore();
 
     void Init();
-    void Shutdown();
 
     bool InjectObject(JNIEnv* env,
                       const base::android::JavaParamRef<jobject>& jcaller,
@@ -36,6 +35,9 @@ class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
                     const base::android::JavaParamRef<jobject>& jcaller,
                     const base::android::JavaParamRef<jstring>& jsfile);
 
+    void Shutdown(JNIEnv* env,
+                  const base::android::JavaParamRef<jobject>& jcaller);
+
     v8::Local<v8::Script> CompileJS(std::string& jsbuf);
     void RunScript(v8::Local<v8::Script> script);
 
@@ -44,6 +46,7 @@ class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
                       const base::android::JavaRef<jobject>& object,
                       const base::android::JavaRef<jclass>& annotation_clazz);
     void Run(std::string& jsbuf);
+    void Shutdown();
 
     virtual std::unique_ptr<gin::IsolateHolder> CreateIsolateHolder() const;
     bool InjectJSLog();

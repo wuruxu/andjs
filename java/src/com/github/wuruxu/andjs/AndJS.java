@@ -5,12 +5,13 @@ import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.ProcessInitException;
 import org.chromium.base.library_loader.LibraryProcessType;
 import java.lang.annotation.Annotation;
+import java.lang.Object;
 import org.chromium.base.annotations.JNINamespace;
 import android.util.Log;
 import android.content.Context;
 
 @JNINamespace("andjs")
-public class AndJS {
+public class AndJS extends Object {
 	private long mNativeJSCore;
 
 	public AndJS(Context context) {
@@ -35,8 +36,14 @@ public class AndJS {
 		nativeInjectObject(mNativeJSCore, obj, name, requiredAnnotation);
 	}
 
+	@Override
+	public void finalize() {
+		nativeShutdown(mNativeJSCore);
+	}
+
 	private native long nativeInitAndJS();
 	private native boolean nativeInjectObject(long nativeAndJSCore, Object obj, String name, Class requiredAnnotation);
 	private native void nativeLoadJSBuf(long nativeAndJSCore, String jsbuf);
 	private native void nativeLoadJSFile(long nativeAndJSCore, String jsfile);
+	private native void nativeShutdown(long nativeAndJSCore);
 }
