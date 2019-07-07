@@ -145,7 +145,7 @@ android_library("andjs_sample_java") {
     ":andjs_sample_java_resources",
     ":andjs_sample_manifest",
     ":andjs_java",
-    "//third_party/android_deps:android_firebase_andjs_java",
+    "//third_party/android_deps:android_firebase_java",
   ]
   java_files = [
     "sample_apk/java/src/com/github/wuruxu/andjs/sample/MainActivity.java",

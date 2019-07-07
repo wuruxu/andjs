@@ -58,7 +58,7 @@ static void JNI_AndJS_LoadJSBuf(JNIEnv* env, const JavaParamRef<jstring>& j_jsbu
 static void JNI_AndJS_LoadJSFile(JNIEnv* env, const JavaParamRef<jstring>& j_jspath) {
   std::string jspath (ConvertJavaStringToUTF8(env, j_jspath));
   std::string jsbuf;
-  //LOG(INFO) << "LoadJSPath " << jspath;
+
   base::FilePath filepath(jspath);
   if(base::ReadFileToString(filepath, &jsbuf)) {
     if(jscore) {
