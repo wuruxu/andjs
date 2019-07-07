@@ -56,9 +56,8 @@ v8::Local<v8::FunctionTemplate> GinJavaBridgeObject::GetFunctionTemplate(
   if (!function_template.IsEmpty())
     return function_template;
   function_template = gin::CreateFunctionTemplate(
-      isolate, base::Bind(&GinJavaFunctionInvocationHelper::Invoke,
-                          base::Owned(new GinJavaFunctionInvocationHelper(
-                              name, bound_object_))));
+      isolate, base::BindRepeating(&GinJavaFunctionInvocationHelper::Invoke,
+                          base::Owned(new GinJavaFunctionInvocationHelper(name, bound_object_))));
   template_cache_.Set(name, function_template);
   return function_template;
 }
