@@ -7,6 +7,7 @@ import android.view.View;
 
 import java.io.File;
 import com.github.wuruxu.andjs.AndJS;
+import com.github.wuruxu.andjs.CalledByJavascript;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.analytics.FirebaseAnalytics;
@@ -43,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
 				jsbuf += "var msg = myobject.getMessage(); adb.info(msg);";
 				jsbuf += "var home = myobject.getMyHome(); home.printRect(0, 0, 512, 512);";
 				jsbuf += "var homemsg = home.getMessage(); adb.info(homemsg);";
+				jsbuf += "var version = get_v8_version(); myactivity.updateTitle(version);";
 
 				File samplefile = new File("/data/local/tmp/sample.js");
 				Bundle bundle = new Bundle();
@@ -59,5 +61,13 @@ public class MainActivity extends AppCompatActivity {
 		});
 		obj = new MyObject();
 		mJSInstance.injectObject(obj, "myobject", null);
+		mJSInstance.injectObject(this, "myactivity", null);
     }
+
+	@CalledByJavascript
+	void updateTitle(String version) {
+		String str = getTitle().toString();
+		str += "@v8(" + version+")";
+		setTitle(str);
+	}
 }

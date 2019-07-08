@@ -60,6 +60,7 @@ class AdbLog: public gin::Wrappable<AdbLog> {
 };
 
 gin::WrapperInfo AdbLog::kWrapperInfo = { gin::kEmbedderNativeGin };
+static std::unique_ptr<content::V8ValueConverter> g_converter_ = content::V8ValueConverter::Create();
 
 AndJSCore::AndJSCore() : message_loop_(new base::MessageLoopForIO()) {
   isolate_ = NULL;
@@ -68,6 +69,11 @@ AndJSCore::AndJSCore() : message_loop_(new base::MessageLoopForIO()) {
 std::unique_ptr<gin::IsolateHolder> AndJSCore::CreateIsolateHolder() const {
   return std::make_unique<gin::IsolateHolder>(base::ThreadTaskRunnerHandle::Get(),
          gin::IsolateHolder::IsolateType::kBlinkMainThread);
+}
+
+v8::Local<v8::Value> AndJSCore::GetV8Version(gin::Arguments* args) {
+  base::Value version(v8::V8::GetVersion());
+  return g_converter_->ToV8Value(&version, args->isolate()->GetCurrentContext());
 }
 
 void AndJSCore::Init() {
@@ -82,7 +88,18 @@ void AndJSCore::Init() {
   isolate_ = instance_->isolate();
   isolate_->Enter();
   HandleScope handle_scope(isolate_);
-  context_.Reset(instance_->isolate(), Context::New(isolate_));
+
+  g_converter_->SetDateAllowed(false);
+  g_converter_->SetRegExpAllowed(false);
+  g_converter_->SetFunctionAllowed(true);
+
+  v8::Local<v8::FunctionTemplate> get_v8_version_func =
+    gin::CreateFunctionTemplate(isolate_, base::BindRepeating(&AndJSCore::GetV8Version));
+  v8::Local<v8::ObjectTemplate> global_templ =
+    gin::ObjectTemplateBuilder(isolate_).Build();
+  global_templ->Set(gin::StringToSymbol(isolate_, "get_v8_version"), get_v8_version_func);
+
+  context_.Reset(isolate_, Context::New(isolate_, NULL, global_templ));
   Local<Context>::New(isolate_, context_)->Enter();
 
   InjectJSLog();
@@ -106,8 +123,8 @@ bool AndJSCore::InjectJSLog() {
   v8::Context::Scope context_scope(context);
   v8::Local<v8::Object> global = context->Global();
   gin::Handle<AdbLog> obj = AdbLog::Create(isolate_);
-  std::string object_name("adb");
-  v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, object_name), obj.ToV8());
+  //std::string object_name("adb");
+  v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, "adb"), obj.ToV8());
   return !result.IsNothing() && result.FromJust();
 }
 

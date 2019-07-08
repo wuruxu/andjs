@@ -7,12 +7,11 @@
 #include "base/android/jni_weak_ref.h"
 #include "base/android/jni_android.h"
 #include "base/message_loop/message_loop.h"
-#include "v8/include/v8.h"
 #include "gin/public/isolate_holder.h"
+#include "gin/arguments.h"
+#include "content/public/renderer/v8_value_converter.h"
 
 namespace andjs {
-
-//class gin::IsolateHolder;
 
 class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
   public:
@@ -47,6 +46,8 @@ class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
                       const base::android::JavaRef<jclass>& annotation_clazz);
     void Run(std::string& jsbuf);
     void Shutdown();
+
+    static v8::Local<v8::Value> GetV8Version(gin::Arguments* args);
 
     virtual std::unique_ptr<gin::IsolateHolder> CreateIsolateHolder() const;
     bool InjectJSLog();
