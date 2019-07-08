@@ -17,12 +17,14 @@ public class MainActivity extends AppCompatActivity {
 	private MyObject obj;
 	private FirebaseAnalytics mFirebaseAnalytics;
 	private AndJS mJSInstance;
+	private boolean mTitleIsUpdated;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_andjs_sample);
 
+		mTitleIsUpdated = false;
 		try {
 			FirebaseOptions fOpt = FirebaseOptions.fromResource(this);
 			FirebaseApp.initializeApp(this, fOpt, "[DEFAULT]");
@@ -66,8 +68,11 @@ public class MainActivity extends AppCompatActivity {
 
 	@CalledByJavascript
 	void updateTitle(String version) {
-		String str = getTitle().toString();
-		str += "@v8(" + version+")";
-		setTitle(str);
+		if(!mTitleIsUpdated) {
+			String str = getTitle().toString();
+			str += "@v8(" + version+")";
+			setTitle(str);
+			mTitleIsUpdated = true;
+		}
 	}
 }
