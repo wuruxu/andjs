@@ -17,8 +17,11 @@ public class MainActivity extends AppCompatActivity {
       mJSInstance = new AndJS(this); //create AndJS Instance
       
       obj = new MyObject();
-      mJSInstance.injectObject(obj, "myobject", null);  //Inject java object into v8 engine as 'myobject'
-      mJSInstance.injectObject(this, "myactivity", null);  //Inject this Activity object into v8 engine as 'myactivity'
+      //Inject java object into v8 engine as 'myobject'
+      mJSInstance.injectObject(obj, "myobject", null);
+      
+      //Inject this Activity object into v8 engine as 'myactivity'
+      mJSInstance.injectObject(this, "myactivity", null);
       
       String jsbuf = "myobject.doLog('This is a JS string');";
 			jsbuf += "var msg = myobject.getMessage(); adb.info(msg);";
