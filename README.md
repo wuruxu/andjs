@@ -2,9 +2,10 @@
 v8 js engine for android
 * How to integrate andjs         
   *  1: add andjs aar into your project
-  *  2: **new AndJS(context)**  to create AndJS Instance
-  *  3: **mJSInstance.injectObject**  to inject java object, which will be used by javascript
-  *  4: **mJSInstance.loadJSBuf(String jsbuf)**  to Run javascript in V8
+  *  2: **new AndJS(context)** to create AndJS Instance
+  *  3: **@CalledByJavascript** to annotation your java method, which will be called in javascript
+  *  4: **mJSInstance.injectObject** to inject java object
+  *  4: **mJSInstance.loadJSBuf(String jsbuf)** to Run javascript in V8
 * Sample code 
 ```java
 import com.github.wuruxu.andjs.AndJS;
