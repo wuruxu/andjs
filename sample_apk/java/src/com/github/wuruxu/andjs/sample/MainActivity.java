@@ -47,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
 				jsbuf += "var home = myobject.getMyHome(); home.printRect(0, 0, 512, 512);";
 				jsbuf += "var homemsg = home.getMessage(); adb.info(homemsg);";
 				jsbuf += "var version = get_v8_version(); myactivity.updateTitle(version);";
+				jsbuf += "var demostring = 'This is jscrypto demo string'; jscrypto.setkey('mykey');";
+				jsbuf += "var encrypt = jscrypto.seal(demostring); var output = jscrypto.open(encrypt); adb.info(output);";
 
 				File samplefile = new File("/data/local/tmp/sample.js");
 				Bundle bundle = new Bundle();

@@ -1,3 +1,23 @@
+/* Copyright (c) 2019 wuruxu <wrxzzj@gmail.com>
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to
+ * deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+ * sell copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 #include "andjs/andjs_core.h"
 
 #include "base/threading/thread_task_runner_handle.h"
@@ -14,6 +34,9 @@
 #include "gin/object_template_builder.h"
 #include "gin/handle.h"
 #include "gin/wrappable.h"
+#include "crypto/aead.h"
+#include "crypto/sha2.h"
+#include "base/base64.h"
 
 #include "andjs/gin_java_bridge_object.h"
 
@@ -28,6 +51,8 @@ using base::android::ConvertJavaStringToUTF16;
 using base::android::ConvertUTF8ToJavaString;
 
 namespace andjs {
+
+static std::unique_ptr<content::V8ValueConverter> g_converter_ = content::V8ValueConverter::Create();
 
 class AdbLog: public gin::Wrappable<AdbLog> {
   public:
@@ -58,9 +83,67 @@ class AdbLog: public gin::Wrappable<AdbLog> {
   private:
     DISALLOW_COPY_AND_ASSIGN(AdbLog);
 };
-
 gin::WrapperInfo AdbLog::kWrapperInfo = { gin::kEmbedderNativeGin };
-static std::unique_ptr<content::V8ValueConverter> g_converter_ = content::V8ValueConverter::Create();
+
+class JSCrypto: public gin::Wrappable<JSCrypto> {
+  private:
+    std::string aead_nonce_;
+    std::string aead_key_;
+	std::unique_ptr<crypto::Aead> aead_;
+
+  public:
+    static gin::WrapperInfo kWrapperInfo;
+
+    static gin::Handle<JSCrypto> Create(v8::Isolate* isolate) {
+      return CreateHandle(isolate, new JSCrypto());
+    }
+
+    void SetKey(v8::Isolate* isolate, const std::string& key) {
+      std::string hash256_ = crypto::SHA256HashString(key);
+      aead_nonce_.assign(hash256_, 0, aead_->NonceLength());
+      aead_key_ = crypto::SHA256HashString(hash256_+aead_nonce_);
+      aead_key_.append(hash256_, 0, 16);
+      aead_->Init(&aead_key_);
+    }
+
+    v8::Local<v8::Value> Seal(v8::Isolate* isolate, const std::string& plaintext) {
+      std::string ciphertext, output;
+      if(aead_->Seal(plaintext, aead_nonce_, "jscrypto", &ciphertext)) {
+        base::Base64Encode(ciphertext, &output);
+        base::Value val(output);
+        return g_converter_->ToV8Value(&val, isolate->GetCurrentContext());
+      }
+      return v8::Undefined(isolate);
+    }
+
+    v8::Local<v8::Value> Open(v8::Isolate* isolate, const std::string& ciphertext) {
+      std::string plaintext, output;
+      base::Base64Decode(ciphertext, &output);
+      if(aead_->Open(output, aead_nonce_, "jscrypto", &plaintext)) {
+        base::Value val(plaintext);
+        return g_converter_->ToV8Value(&val, isolate->GetCurrentContext());
+      }
+      return v8::Undefined(isolate);
+    }
+
+  protected:
+    JSCrypto() {
+      aead_.reset(new crypto::Aead(crypto::Aead::AES_128_CTR_HMAC_SHA256));
+    }
+
+    gin::ObjectTemplateBuilder GetObjectTemplateBuilder(v8::Isolate* isolate) final {
+      return gin::Wrappable<JSCrypto>::GetObjectTemplateBuilder(isolate)
+             .SetMethod("setkey", &JSCrypto::SetKey)
+             .SetMethod("seal", &JSCrypto::Seal)
+             .SetMethod("open", &JSCrypto::Open);
+    }
+    const char* GetTypeName() final { return "JSCrypto"; }
+    ~JSCrypto() override = default;
+
+  private:
+    DISALLOW_COPY_AND_ASSIGN(JSCrypto);
+};
+gin::WrapperInfo JSCrypto::kWrapperInfo = { gin::kEmbedderNativeGin };
 
 AndJSCore::AndJSCore() : message_loop_(new base::MessageLoopForIO()) {
   isolate_ = NULL;
@@ -102,7 +185,7 @@ void AndJSCore::Init() {
   context_.Reset(isolate_, Context::New(isolate_, NULL, global_templ));
   Local<Context>::New(isolate_, context_)->Enter();
 
-  InjectJSLog();
+  InjectNativeObject();
 }
 
 void AndJSCore::Shutdown() {
@@ -116,15 +199,18 @@ void AndJSCore::Shutdown() {
   instance_.reset();
 }
 
-bool AndJSCore::InjectJSLog() {
+bool AndJSCore::InjectNativeObject() {
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
 
   v8::Context::Scope context_scope(context);
   v8::Local<v8::Object> global = context->Global();
-  gin::Handle<AdbLog> obj = AdbLog::Create(isolate_);
-  //std::string object_name("adb");
-  v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, "adb"), obj.ToV8());
+
+  gin::Handle<AdbLog> adb = AdbLog::Create(isolate_);
+  v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, "adb"), adb.ToV8());
+
+  gin::Handle<JSCrypto> jscrypto = JSCrypto::Create(isolate_);
+  result = global->Set(context, gin::StringToV8(isolate_, "jscrypto"), jscrypto.ToV8());
   return !result.IsNothing() && result.FromJust();
 }
 
