@@ -2,9 +2,10 @@
 v8 js engine for android
 * How to integrate andjs         
   *  1: add andjs aar into your project
-  *  2: **new AndJS(context)**  to create AndJS Instance
-  *  3: **mJSInstance.injectObject**  to inject java object, which will be used by javascript
-  *  4: **mJSInstance.loadJSBuf(String jsbuf)**  to Run javascript in V8
+  *  2: **new AndJS(context)** to create AndJS Instance
+  *  3: **@CalledByJavascript** to annotation your java method, which will be called in javascript
+  *  4: **mJSInstance.injectObject** to inject java object
+  *  5: **mJSInstance.loadJSBuf(String jsbuf)** to Run javascript in V8
 * Sample code 
 ```java
 import com.github.wuruxu.andjs.AndJS;
@@ -16,14 +17,26 @@ public class MainActivity extends AppCompatActivity {
       mJSInstance = new AndJS(this); //create AndJS Instance
       
       obj = new MyObject();
-      mJSInstance.injectObject(obj, "myobject", null);  //Inject Java Object into javascript
+      //Inject java object into v8 engine as 'myobject'
+      mJSInstance.injectObject(obj, "myobject", null);
+      
+      //Inject this Activity object into v8 engine as 'myactivity'
+      mJSInstance.injectObject(this, "myactivity", null);
       
       String jsbuf = "myobject.doLog('This is a JS string');";
 			jsbuf += "var msg = myobject.getMessage(); adb.info(msg);";
 			jsbuf += "var home = myobject.getMyHome(); home.printRect(0, 0, 512, 512);";
 			jsbuf += "var homemsg = home.getMessage(); adb.info(homemsg);";
+			jsbuf += "var version = get_v8_version(); myactivity.updateTitle(version);";
         
       mJSInstance.loadJSBuf(jsbuf); // Run Javascript in V8 engine
+    }
+    
+    @CalledByJavascript
+    void updateTitle(String version) {
+    	String str = getTitle().toString();
+	str += "@v8(" + version+")";
+	setTitle(str);
     }
 }
 
