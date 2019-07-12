@@ -1,5 +1,4 @@
 # andjs
-v8 js engine for android
 
  - built with latest v8 js engine
  - native javascript object, such as jscrypto, adb
