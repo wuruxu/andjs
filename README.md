@@ -1,6 +1,6 @@
 # andjs
 
- - built with latest v8 js engine
+ - support quickjs and v8 js engine 
  - native javascript object, such as jscrypto, adb
  - multi-instance support
  - inject java method by annotation
@@ -11,7 +11,7 @@
 2: **new AndJS(context)** to create AndJS Instance              
 3: **@CalledByJavascript** to annotation your java method, which will be called in javascript              
 4: **mJSInstance.injectObject** to inject java object             
-5: **mJSInstance.loadJSBuf(String jsbuf)** to Run javascript in V8             
+5: **mJSInstance.loadJSBuf(String jsbuf)** to Run javascript             
 
 # Sample code 
 ```java
