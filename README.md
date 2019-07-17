@@ -1,12 +1,19 @@
 # andjs
-v8 js engine for android
-* How to integrate andjs         
-  *  1: add andjs aar into your project
-  *  2: **new AndJS(context)** to create AndJS Instance
-  *  3: **@CalledByJavascript** to annotation your java method, which will be called in javascript
-  *  4: **mJSInstance.injectObject** to inject java object
-  *  5: **mJSInstance.loadJSBuf(String jsbuf)** to Run javascript in V8
-* Sample code 
+
+ - support quickjs and v8 js engine 
+ - native javascript object, such as jscrypto, adb
+ - multi-instance support
+ - inject java method by annotation
+ 
+
+# How to integrate andjs:         
+1: add andjs aar into your project                 
+2: **new AndJS(context)** to create AndJS Instance              
+3: **@CalledByJavascript** to annotation your java method, which will be called in javascript              
+4: **mJSInstance.injectObject** to inject java object             
+5: **mJSInstance.loadJSBuf(String jsbuf)** to Run javascript             
+
+# Sample code 
 ```java
 import com.github.wuruxu.andjs.AndJS;
 public class MainActivity extends AppCompatActivity {
@@ -86,3 +93,6 @@ public class MyHome extends Object {
 	}
 }
 ```
+# Donate    
+Your donation makes andjs better:
+  *  Paypal/Alipay/Wechat: [https://donate.andjs.org](https://donate.andjs.org)          
