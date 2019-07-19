@@ -30,6 +30,10 @@
 #include "base/message_loop/message_loop.h"
 #include "base/files/file_path.h"
 #include "base/threading/thread.h"
+#include "base/synchronization/lock.h"
+
+#include "content/browser/android/java/gin_java_bound_object_delegate.h"
+#include "content/browser/android/java/gin_java_bound_object.h"
 
 extern "C" {
 #include "cutils.h"
@@ -38,10 +42,10 @@ extern "C" {
 
 namespace andjs {
 
-class AndJSCore {
+class AndJSCore : public content::GinJavaMethodInvocationHelper::DispatcherDelegate {
   public:
     AndJSCore();
-    ~AndJSCore();
+    ~AndJSCore() override;
 
     void Init();
 
@@ -63,6 +67,16 @@ class AndJSCore {
                   const base::android::JavaParamRef<jobject>& jcaller);
 
     void Run(const std::string& jsbuf, const std::string& resource_name);
+
+    scoped_refptr<content::GinJavaBoundObject> GetObject(content::GinJavaBoundObject::ObjectID object_id);
+    std::unique_ptr<base::Value> FromJSValue(JSValue val);
+    JSValue ToJSValue(const base::Value* value);
+    JSValue ToJSObject(const base::android::JavaRef<jobject>& java_object,
+                       const base::android::JavaRef<jclass>&  annotation_clazz);
+
+    // GinJavaMethodInvocationHelper::DispatcherDelegate
+    JavaObjectWeakGlobalRef GetObjectWeakRef(content::GinJavaBoundObject::ObjectID object_id) override;
+
   private:
     bool InjectObject(std::string& name,
                       const base::android::JavaRef<jobject>& object,
@@ -72,6 +86,13 @@ class AndJSCore {
 
     JSRuntime* rt_;
     JSContext* ctx_;
+
+    typedef std::map<content::GinJavaBoundObject::ObjectID, scoped_refptr<content::GinJavaBoundObject>> ObjectMap;
+    ObjectMap objects_ GUARDED_BY(objects_lock_);
+    base::Lock objects_lock_;
+    content::GinJavaBoundObject::ObjectID next_object_id_;
+
+    //base::IDMap<JSClassID, jclass> jsclass_id_map_;
     std::unique_ptr<base::Thread> thread_;
     std::unique_ptr<base::MessageLoop> message_loop_;
 };

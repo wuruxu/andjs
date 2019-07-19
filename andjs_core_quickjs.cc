@@ -25,21 +25,27 @@
 #include "base/strings/string_util.h"
 #include "base/android/jni_weak_ref.h"
 #include "base/android/jni_string.h"
+#include "base/android/jni_android.h"
+#include "base/android/scoped_java_ref.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "crypto/aead.h"
 #include "crypto/sha2.h"
 #include "base/base64.h"
+#include "content/browser/android/java/gin_java_bound_object.h"
+#include "content/browser/android/java/jni_reflect.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertJavaStringToUTF16;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaObjectArrayReader;
 
 namespace andjs {
 
-static JSClassID jscrypto_class_id;
+static JSClassID jsdata_class_id = 0;
+static JSClassID jscrypto_class_id = 0;
 class JSCrypto {
   public:
     JSCrypto(const std::string& key) {
@@ -111,42 +117,33 @@ static JSClassDef jscrypto_class = {
     //.gc_mark = jscrypto_mark,
 };
 
-static JSValue jscrypto_seal(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
-  JSCrypto* crypto = (JSCrypto* )JS_GetOpaque2(ctx, this_val, jscrypto_class_id);
-  if(crypto == NULL) return JS_EXCEPTION;
-  const char* str = JS_ToCString(ctx, argv[0]);
-  std::string output;
-  if(crypto->Seal(str, output)) {
-    LOG(INFO) << "jscrypto_seal " << str << " ==> " << output;
-    return JS_NewString(ctx, output.c_str());
-  }
-  return JS_UNDEFINED;
-}
-
-static JSValue jscrypto_open(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+static JSValue jscrypto_seal_open(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic) {
   JSCrypto* crypto = (JSCrypto *)JS_GetOpaque2(ctx, this_val, jscrypto_class_id);
   if(crypto == NULL) return JS_EXCEPTION;
   const char* str = JS_ToCString(ctx, argv[0]);
   std::string output;
-  if(crypto->Open(str, output)) {
-    LOG(INFO) << "jscrypto_open " << str << " ==> " << output;
+  if((magic == 0 && crypto->Seal(str, output)) ||
+     (magic == 1 && crypto->Open(str, output))) {
+    LOG(INFO) << "jscrypto_seal_open " << str << " ==> " << output;
     return JS_NewString(ctx, output.c_str());
   }
   return JS_UNDEFINED;
 }
 
 static const JSCFunctionListEntry jscrypto_funcs[] = {
-    JS_CFUNC_DEF("seal", 1, jscrypto_seal),
-    JS_CFUNC_DEF("open", 1, jscrypto_open),
+    JS_CFUNC_MAGIC_DEF("seal", 1, jscrypto_seal_open, 0),
+    JS_CFUNC_MAGIC_DEF("open", 1, jscrypto_seal_open, 1),
 };
 
-AndJSCore::AndJSCore() : message_loop_(new base::MessageLoopForIO()) {
+AndJSCore::AndJSCore() : next_object_id_(1), message_loop_(new base::MessageLoopForIO()) {
 }
 
 void AndJSCore::Init() {
   rt_ = JS_NewRuntime();
   ctx_ = JS_NewContext(rt_);
 
+  JS_SetMemoryLimit(rt_, 51200);
+  JS_SetGCThreshold(rt_, 25600);
   JS_SetModuleLoaderFunc(rt_, NULL, js_module_loader, NULL);
   js_init_module_std(ctx_, "std");
   js_init_module_os(ctx_, "os");
@@ -162,6 +159,11 @@ void AndJSCore::Shutdown() {
   JS_FreeContext(ctx_);
   JS_FreeRuntime(rt_);
   LOG(INFO) << " AndJSCore Shutdown instance " ;
+}
+ 
+JavaObjectWeakGlobalRef AndJSCore::GetObjectWeakRef(content::GinJavaBoundObject::ObjectID object_id) {
+  LOG(INFO) << " *AndJSCore::GetObjectWeakRef* " << object_id;
+  return JavaObjectWeakGlobalRef();
 }
 
 static JSValue adb_info(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
@@ -197,6 +199,9 @@ bool AndJSCore::InjectNativeObject() {
   JS_SetPropertyStr(ctx_, adb, "info", JS_NewCFunction(ctx_, adb_info, "info", 1));
   JS_SetPropertyStr(ctx_, adb, "error", JS_NewCFunction(ctx_, adb_error, "error", 1));
   JS_SetPropertyStr(ctx_, global, "adb", adb);
+
+  /* JSData class */
+  JS_NewClassID(&jsdata_class_id);
 
   /* JSCrypto class */
   JSValue proto;
@@ -244,18 +249,198 @@ void AndJSCore::Shutdown(JNIEnv* env,
   Shutdown();
 }
 
-bool AndJSCore::InjectObject(std::string& name,
-                             const base::android::JavaRef<jobject>& jobject,
+//static void jscrypto_finalizer(JSRuntime *rt, JSValue val) {
+//    JSCrypto *crypto = (JSCrypto* )JS_GetOpaque(val, jscrypto_class_id);
+//    if (crypto) {
+//      delete crypto;
+//    }
+//}
+
+std::unique_ptr<base::Value> AndJSCore::FromJSValue(JSValue val) {
+  uint32_t tag = JS_VALUE_GET_TAG(val);
+  //LOG(INFO) << " FromJSValue jsvalue.type=" << tag;
+  switch(tag) {
+    case JS_TAG_BOOL: {
+      int b = JS_ToBool(ctx_, val);
+      if(b < 0) return std::make_unique<base::Value>();
+      return std::make_unique<base::Value>(b);
+    }
+    case JS_TAG_NULL: {
+      return std::make_unique<base::Value>();
+    }
+    case JS_TAG_UNDEFINED: {
+      return std::make_unique<base::Value>();
+    }
+    case JS_TAG_STRING: {
+      const char* str = JS_ToCString(ctx_, val);
+      if(!str) return std::make_unique<base::Value>();
+      std::unique_ptr<base::Value> ret = std::make_unique<base::Value>(str);
+      JS_FreeCString(ctx_, str);
+      return ret;
+    }
+    case JS_TAG_OBJECT: {
+      return std::make_unique<base::Value>();
+    }
+    case JS_TAG_BIG_INT:
+    case JS_TAG_BIG_FLOAT: {
+      return std::make_unique<base::Value>();
+    }
+    case JS_TAG_INT: {
+      int i;
+      if(JS_ToInt32(ctx_, &i, val))
+        return std::make_unique<base::Value>();
+      return std::make_unique<base::Value>(i);
+    }
+    case JS_TAG_FLOAT64: {
+      double d;
+      if(JS_ToFloat64(ctx_, &d, val))
+        return std::make_unique<base::Value>();
+      return std::make_unique<base::Value>(d);
+    }
+  }
+  return std::make_unique<base::Value>();
+}
+
+JSValue AndJSCore::ToJSValue(const base::Value* value) {
+  LOG(INFO) << " ToJSValue value.type = " << value->type();
+  switch(value->type()) {
+    case base::Value::Type::NONE:
+      return JS_NULL;
+    case base::Value::Type::BOOLEAN: {
+      bool val = false;
+      value->GetAsBoolean(&val);
+      return JS_NewBool(ctx_, val);
+    }
+    case base::Value::Type::INTEGER: {
+      int val = 0;
+      value->GetAsInteger(&val);
+      return JS_NewInt32(ctx_, val);
+    }
+    case base::Value::Type::DOUBLE: {
+      double val = 0.0;
+      value->GetAsDouble(&val);
+      return JS_NewFloat64(ctx_, val);
+    }
+    case base::Value::Type::STRING: {
+      std::string val;
+      value->GetAsString(&val);
+      return JS_NewString(ctx_, val.c_str());
+    }
+    case base::Value::Type::LIST:
+    break;
+    case base::Value::Type::DICTIONARY:
+    break;
+    case base::Value::Type::BINARY: {
+      return JS_NewArrayBufferCopy(ctx_, value->GetBlob().data(), value->GetBlob().size());
+    }
+    default: break;
+  }
+
+  LOG(ERROR) << "Unexpected value type: " << value->type();
+  return JS_UNDEFINED;
+}
+
+static JSValue java_object_invoke(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, JSValue* data) {
+  content::GinJavaBoundObject::ObjectID object_id = magic;
+  AndJSCore* thiz = (AndJSCore* )JS_GetOpaque(data[0], jsdata_class_id);
+  const char* method_name = JS_ToCString(ctx, data[1]);
+  scoped_refptr<content::GinJavaBoundObject> bound_object = thiz->GetObject(object_id);
+  LOG(INFO) << " java_object_invoke " << " object_id " << object_id << " method_name " << method_name;
+  base::ListValue arguments;
+  for(int i = 0; i < argc; i++) {
+    arguments.Append(thiz->FromJSValue(argv[i]));
+  }
+
+  content::GinJavaBridgeError error;
+  scoped_refptr<content::GinJavaMethodInvocationHelper> result =
+    new content::GinJavaMethodInvocationHelper(std::make_unique<content::GinJavaBoundObjectDelegate>(bound_object), method_name, arguments);
+
+  result->Init(NULL);
+  result->Invoke();
+  error = result->GetInvocationError();
+
+  JS_FreeCString(ctx, method_name);
+  if (result->HoldsPrimitiveResult()) {
+    base::Value* v8_result;
+    std::unique_ptr<base::ListValue> result_copy(result->GetPrimitiveResult().DeepCopy());
+    if(result_copy->Get(0, &v8_result)) {
+      return thiz->ToJSValue(v8_result);
+    }
+  } else if (!result->GetObjectResult().is_null()) {
+    JNIEnv* env = base::android::AttachCurrentThread();
+    JavaObjectWeakGlobalRef ref(env, result->GetObjectResult().obj());
+    //scoped_refptr<content::GinJavaBoundObject> bound_object = content::GinJavaBoundObject::CreateNamed(ref, result->GetSafeAnnotationClass());
+    return thiz->ToJSObject(result->GetObjectResult(), result->GetSafeAnnotationClass());
+  }
+
+  return JS_UNDEFINED;
+}
+
+scoped_refptr<content::GinJavaBoundObject> AndJSCore::GetObject(content::GinJavaBoundObject::ObjectID object_id) {
+  // Can be called on any thread.
+  base::AutoLock locker(objects_lock_);
+  auto iter = objects_.find(object_id);
+  if (iter != objects_.end())
+    return iter->second;
+  LOG(ERROR) << "AndJSCore: Unknown object: " << object_id;
+  return nullptr;
+}
+
+JSValue AndJSCore::ToJSObject(const base::android::JavaRef<jobject>& java_object, const base::android::JavaRef<jclass>&  annotation_clazz) {
+  JSValue jsobj = JS_NULL;
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  if(java_object.obj()) {
+    jsobj = JS_NewObject(ctx_);
+    JavaObjectWeakGlobalRef ref(env, java_object.obj());
+    //content::GinJavaBoundObject* bound_object = content::GinJavaBoundObject::CreateNamed(ref, annotation_clazz);
+    scoped_refptr<content::GinJavaBoundObject> new_object = content::GinJavaBoundObject::CreateNamed(ref, annotation_clazz);
+    ScopedJavaLocalRef<jclass> clazz = new_object->GetLocalClassRef(env);
+    content::GinJavaBoundObject::ObjectID object_id;
+    {
+      base::AutoLock locker(objects_lock_);
+      object_id = next_object_id_++;
+      objects_[object_id] = new_object;
+    }
+    std::string class_name = content::GetClassName(env, clazz);
+    JSValue jsdata = JS_NewObjectClass(ctx_, jsdata_class_id);
+    JS_SetOpaque(jsdata, (void *)this);
+    LOG(INFO) << " java_object class_name " << class_name << " object_id " << object_id;
+
+    JavaObjectArrayReader<jobject> methods(content::GetClassMethods(env, clazz));
+    for (auto java_method : methods) {
+      if (!annotation_clazz.is_null() && !content::IsAnnotationPresent(env, java_method, annotation_clazz)) {
+        continue;
+      }
+      std::string method_name = content::GetMethodName(env, java_method);
+      ScopedJavaLocalRef<jobjectArray> parameters(content::GetMethodParameterTypes(env, java_method));
+      int num_parameters = env->GetArrayLength(parameters.obj());
+      bool is_static = content::IsMethodStatic(env, java_method);
+      JSValueConst method_data[2];
+
+      method_data[0] = jsdata;
+      method_data[1] = JS_NewString(ctx_, method_name.c_str());
+      JS_SetPropertyStr(ctx_, jsobj, method_name.c_str(), JS_NewCFunctionData(ctx_, java_object_invoke, num_parameters, object_id, 2, method_data));
+      //LOG(INFO) << " method : " << method_name << " is_static " << is_static << " num_parameters " << num_parameters;
+    }
+  }
+  return jsobj;
+}
+
+bool AndJSCore::InjectObject(std::string& objname,
+                             const base::android::JavaRef<jobject>& java_object,
                              const base::android::JavaRef<jclass>&  annotation_clazz) {
-  JSValue obj, global;
+  bool ret = false;
 
-  global = JS_GetGlobalObject(ctx_);
-  obj = JS_NewObject(ctx_);
-  
-  JS_SetPropertyStr(ctx_, global, name.c_str(), obj);
-  JS_FreeValue(ctx_, global);
+  JSValue global = JS_GetGlobalObject(ctx_);
+  JSValue jsobj = ToJSObject(java_object, annotation_clazz);
 
-  return true;
+  if(!JS_IsNull(jsobj)) {
+    JS_SetPropertyStr(ctx_, global, objname.c_str(), jsobj);
+    JS_FreeValue(ctx_, global);
+    ret = true;
+  }
+  return ret;
 }
 
 void AndJSCore::Run(const std::string& jsbuf, const std::string& resource_name) {
