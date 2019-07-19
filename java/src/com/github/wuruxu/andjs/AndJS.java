@@ -52,8 +52,8 @@ public class AndJS extends Object {
 		nativeLoadJSFile(mNativeJSCore, jsfile);
 	}
 
-	public void injectObject(Object obj, String name, Class<? extends Annotation> requiredAnnotation) {
-		nativeInjectObject(mNativeJSCore, obj, name, requiredAnnotation);
+	public void injectObject(Object obj, String name) {
+		nativeInjectObject(mNativeJSCore, obj, name, CalledByJavascript.class);
 	}
 
 	@Override

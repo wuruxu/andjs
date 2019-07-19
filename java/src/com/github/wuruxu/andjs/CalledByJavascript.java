@@ -29,8 +29,6 @@ import java.lang.annotation.Target;
  *  @AccessedByNative is used to ensure proguard will keep this field, since it's
  *  only accessed by native.
  */
-@Target({ElementType.CONSTRUCTOR, ElementType.METHOD})
-@Retention(RetentionPolicy.CLASS)
-public @interface CalledByJavascript {
-    public String value() default "";
-}
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.METHOD})
+public @interface CalledByJavascript {}

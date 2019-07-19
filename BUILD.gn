@@ -66,11 +66,43 @@ if (is_android) {
 #    !is_arm_cast_shell_build && !is_android && !is_fuchsia && !is_ios
 
 andjs_jni_registration_header = "$root_build_dir/gen/andjs/android/andjs_jni_registration.h"
+andjs_quickjs_jni_registration_header = "$root_build_dir/gen/andjs/android/andjs_quickjs_jni_registration.h"
 
 #generate_jni_registration("andjs_jni_registration") {
 #  target = ":andjs_public_java"
 #  header_output = andjs_jni_registration_header
 #}
+config("quickjs_config") {
+  include_dirs = [
+    "quickjs-2019-07-09/",
+  ]
+
+  if (is_clang) {
+    cflags = [
+      "-Wall",
+      "-Wextra",
+      "-Wno-sign-compare",
+      "-Wundef",
+      "-Wuninitialized",
+      "-Wno-missing-field-initializers",
+      "-Wwrite-strings",
+      "-Wchar-subscripts",
+      "-funsigned-char",
+      "-Wunused",
+      "-Wno-unused-parameter",
+      "-Wno-unused-variable",
+    ]
+  }
+
+  defines = [
+    "CONFIG_VERSION=\"2019-07-09\"",
+    "CONFIG_BIGNUM",
+    "EMSCRIPTEN",
+    #"HAVE_SYS_SOCKET_H",
+    #"HAVE_SYS_IOCTL_H",
+    #"HAVE_SYS_UIO_H",
+  ]
+}
 
 java_group("andjs_public_java") {
   deps = [
@@ -98,6 +130,78 @@ generate_jni("andjs_jni_headers") {
   ]
 }
 
+#component("libquickjs") {
+#  sources = [
+#    #"quickjs.c",
+#    #"libbf.c",
+#    #"libregexp.c",
+#    #"libunicode.c",
+#    #"quickjs-libc.c",
+#    #"qjscalc.c",
+#    #"cutils.c",
+#    "quickjs-2019-07-09/quickjs.c",
+#    "quickjs-2019-07-09/libbf.c",
+#    "quickjs-2019-07-09/libregexp.c",
+#    "quickjs-2019-07-09/libunicode.c",
+#    "quickjs-2019-07-09/quickjs-libc.c",
+#    "quickjs-2019-07-09/qjscalc.c",
+#    "quickjs-2019-07-09/cutils.c",
+#  ]
+#
+#  public_deps = [
+#  ]
+#
+#  public_configs = [ ":quickjs_config" ]
+#}
+
+shared_library("libandjs_quickjs_jni") {
+  include_dirs = [
+    ".",
+    "quickjs-2019-07-09/",
+  ]
+
+  sources = [
+    "andjs_core_quickjs.cc",
+    "andjs_jni.cc",
+    "quickjs-2019-07-09/quickjs.c",
+    "quickjs-2019-07-09/libbf.c",
+    "quickjs-2019-07-09/libregexp.c",
+    "quickjs-2019-07-09/libunicode.c",
+    "quickjs-2019-07-09/quickjs-libc.c",
+    "quickjs-2019-07-09/qjscalc.c",
+    "quickjs-2019-07-09/cutils.c",
+    "//content/common/android/gin_java_bridge_value.cc",
+    "//content/common/android/gin_java_bridge_errors.cc",
+    "//content/browser/android/java/gin_java_bound_object_delegate.cc",
+    "//content/browser/android/java/java_bridge_thread.cc",
+    "//content/browser/android/java/gin_java_method_invocation_helper.cc",
+    "//content/browser/android/java/java_method.cc",
+    "//content/browser/android/java/java_type.cc",
+    "//content/browser/android/java/jni_reflect.cc",
+    "//content/browser/android/java/gin_java_bound_object.cc",
+    "//content/browser/android/java/gin_java_script_to_java_types_coercion.cc",
+    andjs_quickjs_jni_registration_header,
+  ]
+
+  defines = [
+    "_ENABLE_QUICKJS_",
+    "__OBJC__",
+    #"CONFIG_VERSION=\"2019-07-09\"",
+    #"CONFIG_BIGNUM",
+  ]
+
+  deps = [
+    ":andjs_jni_headers",
+    ":reflection_jni_headers",
+    ":sample_quickjs_apk__final_jni",
+    "//base",
+    #":libquickjs",
+    #"//third_party/quickjs:libquickjs",
+    "//crypto",
+  ]
+  public_configs = [ ":quickjs_config" ]
+}
+
 shared_library("libandjs_jni") {
   sources = [
     "//content/common/android/gin_java_bridge_value.cc",
@@ -119,17 +223,20 @@ shared_library("libandjs_jni") {
   ]
 
   defines = [ "V8_USE_EXTERNAL_STARTUP_DATA", ]
+  defines += [ "ENABLE_V8_LOCKER", ]
+
+  cflags = [ "-g", ]
 
   deps = [
     ":andjs_jni_headers",
     ":reflection_jni_headers",
     ":sample_apk__final_jni",
     "//base",
+    "//base:i18n",
     "//v8",
     "//v8:v8_libplatform",
     "//gin",
     "//crypto",
-    #":andjs_jni_registration",
     #"//content/shell:content_shell_lib",
     #"//content/shell:pak",
   ]
@@ -236,6 +343,32 @@ android_apk("sample_apk") {
   ]
 }
 
+android_apk("sample_quickjs_apk") {
+  enable_multidex = true
+  deps = [
+    ":andjs_sample_java",
+  ]
+
+  apk_name = "AndJS-QuickJS-Sample"
+  version_code = "7"
+  version_name = "1.0.0d"
+  android_manifest = andjs_sample_manifest
+  android_manifest_dep = ":andjs_sample_manifest"
+  shared_libraries = [ ":libandjs_quickjs_jni" ]
+  command_line_flags_file = "andjs-command-line"
+  jni_registration_header = andjs_quickjs_jni_registration_header
+
+  proguard_enabled = true 
+  if(!defined(proguard_configs)) {
+    proguard_configs = []
+  }
+  proguard_configs += [
+    "//andjs/java/andjs_for_android.flags",
+    "//base/android/proguard/chromium_code.flags",
+    "//base/android/proguard/chromium_apk.flags",
+  ]
+}
+
 #android_app_bundle_module("sample_base_app") {
 #  deps = [
 #    ":andjs_assets",
@@ -283,7 +416,7 @@ dist_aar("andjs_aar") {
     ":libandjs_jni",
   ]
 
-  native_libraries = [ "$root_build_dir/libandjs_jni.so" ]
+  #native_libraries = [ "$root_build_dir/libandjs_jni.so" ]
 
   if(!defined(proguard_configs)) {
     proguard_configs = []

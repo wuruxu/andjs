@@ -38,9 +38,14 @@
 #include "chrome/app/android/chrome_jni_onload.h"
 #include "base/android/library_loader/library_loader_hooks.h"
 
+#ifdef _ENABLE_QUICKJS_
+#include "andjs/andjs_core_quickjs.h"
+#include "andjs/android/andjs_quickjs_jni_registration.h"
+#else
 #include "andjs/andjs_core.h"
-
 #include "andjs/android/andjs_jni_registration.h"
+#endif
+
 #include "jni/AndJS_jni.h"
 
 namespace andjs {
