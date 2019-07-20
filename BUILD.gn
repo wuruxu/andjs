@@ -98,6 +98,7 @@ config("quickjs_config") {
     "CONFIG_VERSION=\"2019-07-09\"",
     "CONFIG_BIGNUM",
     "EMSCRIPTEN",
+    "__OBJC__",
     #"HAVE_SYS_SOCKET_H",
     #"HAVE_SYS_IOCTL_H",
     #"HAVE_SYS_UIO_H",
@@ -130,39 +131,8 @@ generate_jni("andjs_jni_headers") {
   ]
 }
 
-#component("libquickjs") {
-#  sources = [
-#    #"quickjs.c",
-#    #"libbf.c",
-#    #"libregexp.c",
-#    #"libunicode.c",
-#    #"quickjs-libc.c",
-#    #"qjscalc.c",
-#    #"cutils.c",
-#    "quickjs-2019-07-09/quickjs.c",
-#    "quickjs-2019-07-09/libbf.c",
-#    "quickjs-2019-07-09/libregexp.c",
-#    "quickjs-2019-07-09/libunicode.c",
-#    "quickjs-2019-07-09/quickjs-libc.c",
-#    "quickjs-2019-07-09/qjscalc.c",
-#    "quickjs-2019-07-09/cutils.c",
-#  ]
-#
-#  public_deps = [
-#  ]
-#
-#  public_configs = [ ":quickjs_config" ]
-#}
-
-shared_library("libandjs_quickjs_jni") {
-  include_dirs = [
-    ".",
-    "quickjs-2019-07-09/",
-  ]
-
+component("libquickjs") {
   sources = [
-    "andjs_core_quickjs.cc",
-    "andjs_jni.cc",
     "quickjs-2019-07-09/quickjs.c",
     "quickjs-2019-07-09/libbf.c",
     "quickjs-2019-07-09/libregexp.c",
@@ -170,6 +140,22 @@ shared_library("libandjs_quickjs_jni") {
     "quickjs-2019-07-09/quickjs-libc.c",
     "quickjs-2019-07-09/qjscalc.c",
     "quickjs-2019-07-09/cutils.c",
+  ]
+
+  public_deps = [
+  ]
+
+  public_configs = [ ":quickjs_config" ]
+}
+
+shared_library("libandjs_quickjs_jni") {
+  include_dirs = [
+    ".",
+  ]
+
+  sources = [
+    "andjs_core_quickjs.cc",
+    "andjs_jni.cc",
     "//content/common/android/gin_java_bridge_value.cc",
     "//content/common/android/gin_java_bridge_errors.cc",
     "//content/browser/android/java/gin_java_bound_object_delegate.cc",
@@ -185,9 +171,6 @@ shared_library("libandjs_quickjs_jni") {
 
   defines = [
     "_ENABLE_QUICKJS_",
-    "__OBJC__",
-    #"CONFIG_VERSION=\"2019-07-09\"",
-    #"CONFIG_BIGNUM",
   ]
 
   deps = [
@@ -195,11 +178,10 @@ shared_library("libandjs_quickjs_jni") {
     ":reflection_jni_headers",
     ":sample_quickjs_apk__final_jni",
     "//base",
-    #":libquickjs",
-    #"//third_party/quickjs:libquickjs",
+    ":libquickjs",
     "//crypto",
   ]
-  public_configs = [ ":quickjs_config" ]
+  #public_configs = [ ":quickjs_config" ]
 }
 
 shared_library("libandjs_jni") {
@@ -237,8 +219,6 @@ shared_library("libandjs_jni") {
     "//v8:v8_libplatform",
     "//gin",
     "//crypto",
-    #"//content/shell:content_shell_lib",
-    #"//content/shell:pak",
   ]
 }
 
