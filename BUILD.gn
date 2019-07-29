@@ -407,7 +407,11 @@ dist_aar("andjs_aar") {
     "//base/android/proguard/chromium_code.flags",
     "//base/android/proguard/chromium_apk.flags",
   ]
-  output = "$root_build_dir/andjs-v1.0.0c-cr76.aar"
+  out_arch = "arm32"
+  if(target_cpu == "arm64") {
+    out_arch = "arm64"
+  }
+  output = "$root_build_dir/andjs-v1.0.0c-cr76-$out_arch.aar"
 }
 
 dist_aar("andjs_quickjs_aar") {
