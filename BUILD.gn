@@ -74,7 +74,7 @@ andjs_quickjs_jni_registration_header = "$root_build_dir/gen/andjs/android/andjs
 #}
 config("quickjs_config") {
   include_dirs = [
-    "quickjs-2019-07-09/",
+    "quickjs-2019-07-28/",
   ]
 
   if (is_clang) {
@@ -91,11 +91,12 @@ config("quickjs_config") {
       "-Wunused",
       "-Wno-unused-parameter",
       "-Wno-unused-variable",
+      "-Wno-unused-function",
     ]
   }
 
   defines = [
-    "CONFIG_VERSION=\"2019-07-09\"",
+    "CONFIG_VERSION=\"2019-07-28\"",
     "CONFIG_BIGNUM",
     "EMSCRIPTEN",
     "__OBJC__",
@@ -133,13 +134,13 @@ generate_jni("andjs_jni_headers") {
 
 component("libquickjs") {
   sources = [
-    "quickjs-2019-07-09/quickjs.c",
-    "quickjs-2019-07-09/libbf.c",
-    "quickjs-2019-07-09/libregexp.c",
-    "quickjs-2019-07-09/libunicode.c",
-    "quickjs-2019-07-09/quickjs-libc.c",
-    "quickjs-2019-07-09/qjscalc.c",
-    "quickjs-2019-07-09/cutils.c",
+    "quickjs-2019-07-28/quickjs.c",
+    "quickjs-2019-07-28/libbf.c",
+    "quickjs-2019-07-28/libregexp.c",
+    "quickjs-2019-07-28/libunicode.c",
+    "quickjs-2019-07-28/quickjs-libc.c",
+    "quickjs-2019-07-28/qjscalc.c",
+    "quickjs-2019-07-28/cutils.c",
   ]
 
   public_deps = [
@@ -197,7 +198,6 @@ shared_library("libandjs_jni") {
     "//content/browser/android/java/gin_java_bound_object.cc",
     "//content/browser/android/java/gin_java_script_to_java_types_coercion.cc",
     "//content/renderer/v8_value_converter_impl.cc",
-    "gin_java_function_invocation_helper.cc",
     "gin_java_bridge_object.cc",
     "andjs_jni.cc",
     "andjs_core.cc",
@@ -250,6 +250,7 @@ android_library("andjs_sample_java") {
     ":andjs_sample_manifest",
     ":andjs_java",
     "//third_party/android_deps:android_firebase_java",
+    "//third_party/android_deps:android_support_v7_appcompat_java",
   ]
   java_files = [
     "sample_apk/java/src/com/github/wuruxu/andjs/sample/MainActivity.java",

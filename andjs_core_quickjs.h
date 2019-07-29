@@ -36,8 +36,8 @@
 #include "content/browser/android/java/gin_java_bound_object.h"
 
 extern "C" {
-#include "cutils.h"
 #include "quickjs-libc.h"
+#include "cutils.h"
 }
 
 namespace andjs {
