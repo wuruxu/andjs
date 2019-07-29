@@ -409,3 +409,27 @@ dist_aar("andjs_aar") {
   ]
   output = "$root_build_dir/andjs-v1.0.0c-cr76.aar"
 }
+
+dist_aar("andjs_quickjs_aar") {
+  deps = [
+    #":andjs_assets",
+    ":andjs_java",
+    ":libandjs_quickjs_jni",
+  ]
+
+  native_libraries = [ "$root_build_dir/libandjs_quickjs_jni.so" ]
+
+  if(!defined(proguard_configs)) {
+    proguard_configs = []
+  }
+  proguard_configs += [
+    "//andjs/java/andjs_for_android.flags",
+    "//base/android/proguard/chromium_code.flags",
+    "//base/android/proguard/chromium_apk.flags",
+  ]
+  out_arch = "arm32"
+  if(target_cpu == "arm64") {
+    out_arch = "arm64"
+  }
+  output = "$root_build_dir/andjs-v1.0.0d-quickjs-20190728-$out_arch.aar"
+}
