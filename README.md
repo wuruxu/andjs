@@ -1,6 +1,6 @@
 # andjs
 
- - support [quickjs!](https://bellard.org/quickjs/) and [chromium v8!](https://chromium.googlesource.com/v8/) js engine 
+ - support js engine [quickjs](https://bellard.org/quickjs/) and [chromium v8](https://chromium.googlesource.com/v8/v8)
  - native javascript object, such as jscrypto, adb
  - multi-instance support
  - inject java method by annotation
