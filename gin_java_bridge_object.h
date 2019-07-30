@@ -21,6 +21,8 @@
 
 #include "content/common/android/gin_java_bridge_errors.h"
 #include "content/browser/android/java/gin_java_bound_object.h"
+#include "content/browser/android/java/gin_java_bound_object_delegate.h"
+#include "content/public/renderer/v8_value_converter.h"
 
 namespace base {
 class Value;
@@ -28,22 +30,18 @@ class ListValue;
 }
 
 namespace andjs {
-
+class AndJSCore;
 class GinJavaBridgeObject : public gin::Wrappable<GinJavaBridgeObject>,
                             //public base::RefCountedThreadSafe<GinJavaBridgeObject>,
+                            public content::GinJavaMethodInvocationHelper::DispatcherDelegate,
                             public gin::NamedPropertyInterceptor {
  public:
   static gin::WrapperInfo kWrapperInfo;
-
 
   // The following methods can be called on any thread.
   JavaObjectWeakGlobalRef& GetWeakRef() { return ref_; }
   base::android::ScopedJavaLocalRef<jobject> GetLocalRef(JNIEnv* env) {
     return ref_.get(env);
-  }
-
-  scoped_refptr<content::GinJavaBoundObject> bound_object() {
-    return bound_object_;
   }
 
   // gin::Wrappable.
@@ -56,10 +54,14 @@ class GinJavaBridgeObject : public gin::Wrappable<GinJavaBridgeObject>,
   std::vector<std::string> EnumerateNamedProperties(
       v8::Isolate* isolate) override;
 
+  // GinJavaMethodInvocationHelper::DispatcherDelegate
+  JavaObjectWeakGlobalRef GetObjectWeakRef(
+      content::GinJavaBoundObject::ObjectID object_id) override;
+
   const base::android::JavaRef<jclass>& GetSafeAnnotationClass();
   base::android::ScopedJavaLocalRef<jclass> GetLocalClassRef(JNIEnv* env);
 
-  GinJavaBridgeObject(v8::Isolate* isolate, scoped_refptr<content::GinJavaBoundObject> bound_object);
+  GinJavaBridgeObject(AndJSCore* jscore, content::GinJavaBoundObject::ObjectID object_id);
 
  private:
   ~GinJavaBridgeObject() override;
@@ -67,10 +69,13 @@ class GinJavaBridgeObject : public gin::Wrappable<GinJavaBridgeObject>,
   v8::Local<v8::FunctionTemplate> GetFunctionTemplate(v8::Isolate* isolate,
                                                       const std::string& name);
 
+  v8::Local<v8::Value> Invoke(const std::string& method_name, gin::Arguments* args);
+  AndJSCore* jscore_;
   JavaObjectWeakGlobalRef ref_;
   std::map<std::string, bool> known_methods_;
 
-  scoped_refptr<content::GinJavaBoundObject> bound_object_;
+  content::GinJavaBoundObject::ObjectID object_id_;
+  std::unique_ptr<content::V8ValueConverter> converter_;
   v8::StdGlobalValueMap<std::string, v8::FunctionTemplate> template_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(GinJavaBridgeObject);

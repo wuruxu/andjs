@@ -28,16 +28,23 @@
 #include "base/android/jni_weak_ref.h"
 #include "base/android/jni_android.h"
 #include "base/message_loop/message_loop.h"
+#include "base/files/file_path.h"
+#include "base/threading/thread.h"
 #include "gin/public/isolate_holder.h"
 #include "gin/arguments.h"
+#include "gin/runner.h"
 #include "content/public/renderer/v8_value_converter.h"
+#include "gin/public/context_holder.h"
+
+#include "content/browser/android/java/gin_java_bound_object_delegate.h"
+#include "content/browser/android/java/gin_java_bound_object.h"
 
 namespace andjs {
 
-class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
+class AndJSCore : public gin::Runner {
   public:
     AndJSCore();
-    ~AndJSCore();
+    ~AndJSCore() override;
 
     void Init();
 
@@ -58,24 +65,32 @@ class AndJSCore : public base::SupportsWeakPtr<AndJSCore> {
     void Shutdown(JNIEnv* env,
                   const base::android::JavaParamRef<jobject>& jcaller);
 
-    v8::Local<v8::Script> CompileJS(std::string& jsbuf);
-    void RunScript(v8::Local<v8::Script> script);
-
+    scoped_refptr<content::GinJavaBoundObject> GetObject(content::GinJavaBoundObject::ObjectID object_id);
+    gin::ContextHolder* GetContextHolder() override;
+    void Run(const std::string& jsbuf, const std::string& resource_name) override;
+    v8::Local<v8::Value> InjectObject(const base::android::JavaRef<jobject>& jobject,
+                                      const base::android::JavaRef<jclass>&  annotation_clazz);
   private:
     bool InjectObject(std::string& name,
                       const base::android::JavaRef<jobject>& object,
                       const base::android::JavaRef<jclass>& annotation_clazz);
-    void Run(std::string& jsbuf);
+    void loadJSFileTask(const std::string& jspath); //'const'
     void Shutdown();
+    void doV8Test(const std::string& jsbuf);
 
     static v8::Local<v8::Value> GetV8Version(gin::Arguments* args);
 
-    virtual std::unique_ptr<gin::IsolateHolder> CreateIsolateHolder() const;
+    typedef std::map<content::GinJavaBoundObject::ObjectID, scoped_refptr<content::GinJavaBoundObject>> ObjectMap;
+    ObjectMap objects_ GUARDED_BY(objects_lock_);
+    base::Lock objects_lock_;
+    content::GinJavaBoundObject::ObjectID next_object_id_;
+
     bool InjectNativeObject();
-    v8::Isolate* isolate_;
     std::unique_ptr<gin::IsolateHolder> instance_;
-    v8::Persistent<v8::Context> context_;
+    std::unique_ptr<gin::ContextHolder> context_holder_;
     std::unique_ptr<base::MessageLoop> message_loop_;
+    std::unique_ptr<base::Thread> thread_;
+    v8::Persistent<v8::External> v8_this_;
 };
 
 }

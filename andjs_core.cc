@@ -21,11 +21,13 @@
 #include "andjs/andjs_core.h"
 
 #include "base/threading/thread_task_runner_handle.h"
-#include "base/threading/thread_task_runner_handle.h"
 #include "base/strings/string_util.h"
 #include "base/android/jni_weak_ref.h"
 #include "base/android/jni_string.h"
+#include "base/feature_list.h"
 #include "base/files/file_util.h"
+#include "base/threading/thread.h"
+#include "base/i18n/icu_util.h"
 #include "gin/array_buffer.h"
 #include "gin/try_catch.h"
 #include "gin/v8_initializer.h"
@@ -34,15 +36,19 @@
 #include "gin/object_template_builder.h"
 #include "gin/handle.h"
 #include "gin/wrappable.h"
+#include "gin/per_context_data.h"
 #include "crypto/aead.h"
 #include "crypto/sha2.h"
 #include "base/base64.h"
+#include "v8/include/libplatform/libplatform.h"
 
 #include "andjs/gin_java_bridge_object.h"
 
 using v8::Context;
 using v8::Local;
 using v8::HandleScope;
+using v8::Isolate;
+using v8::Locker;
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -145,13 +151,14 @@ class JSCrypto: public gin::Wrappable<JSCrypto> {
 };
 gin::WrapperInfo JSCrypto::kWrapperInfo = { gin::kEmbedderNativeGin };
 
-AndJSCore::AndJSCore() : message_loop_(new base::MessageLoopForIO()) {
-  isolate_ = NULL;
-}
+AndJSCore::AndJSCore() : next_object_id_(1), message_loop_(new base::MessageLoopForIO()) {
+  thread_.reset(new base::Thread("JSTask"));
+  thread_->Start();
 
-std::unique_ptr<gin::IsolateHolder> AndJSCore::CreateIsolateHolder() const {
-  return std::make_unique<gin::IsolateHolder>(base::ThreadTaskRunnerHandle::Get(),
-         gin::IsolateHolder::IsolateType::kBlinkMainThread);
+  g_converter_->SetDateAllowed(false);
+  g_converter_->SetRegExpAllowed(false);
+  g_converter_->SetFunctionAllowed(true);
+  //thread_->task_runner()->PostTask(FROM_HERE, base::BindRepeating(&AndJSCore::Init, base::Unretained(this)));
 }
 
 v8::Local<v8::Value> AndJSCore::GetV8Version(gin::Arguments* args) {
@@ -160,57 +167,107 @@ v8::Local<v8::Value> AndJSCore::GetV8Version(gin::Arguments* args) {
 }
 
 void AndJSCore::Init() {
+  base::i18n::InitializeICU();
 #ifdef V8_USE_EXTERNAL_STARTUP_DATA
   gin::V8Initializer::LoadV8Snapshot();
   gin::V8Initializer::LoadV8Natives();
 #endif
+
+  static const char kOptimizeForSize[] = "--optimize_for_size";
+  v8::V8::SetFlagsFromString(kOptimizeForSize, strlen(kOptimizeForSize));
+  static const char kNoOpt[] = "--noopt";
+  v8::V8::SetFlagsFromString(kNoOpt, strlen(kNoOpt));
+
+  // WebAssembly isn't encountered during resolution, so reduce the
+  // potential attack surface.
+  static const char kNoExposeWasm[] = "--no-expose-wasm";
+  v8::V8::SetFlagsFromString(kNoExposeWasm, strlen(kNoExposeWasm));
+
   gin::IsolateHolder::Initialize(gin::IsolateHolder::kStrictMode,
                                  gin::ArrayBufferAllocator::SharedInstance());
 
-  instance_ = CreateIsolateHolder();
-  isolate_ = instance_->isolate();
-  isolate_->Enter();
-  HandleScope handle_scope(isolate_);
+  instance_.reset(new gin::IsolateHolder(base::ThreadTaskRunnerHandle::Get(),
+    #if ENABLE_V8_LOCKER
+    gin::IsolateHolder::AccessMode::kUseLocker,
+    #endif
+    gin::IsolateHolder::IsolateType::kUtility));
+  LOG(INFO) << " CreateIsolateHolder instance " << instance_;
+  Isolate* isolate_ = instance_->isolate();
 
-  g_converter_->SetDateAllowed(false);
-  g_converter_->SetRegExpAllowed(false);
-  g_converter_->SetFunctionAllowed(true);
+#if ENABLE_V8_LOCKER
+  v8::Locker locked(isolate_);
+#endif
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
 
-  v8::Local<v8::FunctionTemplate> get_v8_version_func =
+  v8::Local<v8::FunctionTemplate> get_v8_version_templ =
     gin::CreateFunctionTemplate(isolate_, base::BindRepeating(&AndJSCore::GetV8Version));
   v8::Local<v8::ObjectTemplate> global_templ =
     gin::ObjectTemplateBuilder(isolate_).Build();
-  global_templ->Set(gin::StringToSymbol(isolate_, "get_v8_version"), get_v8_version_func);
+  global_templ->Set(gin::StringToSymbol(isolate_, "get_v8_version"), get_v8_version_templ);
 
-  context_.Reset(isolate_, Context::New(isolate_, NULL, global_templ));
-  Local<Context>::New(isolate_, context_)->Enter();
+  context_holder_.reset(new gin::ContextHolder(isolate_));
+  context_holder_->SetContext(v8::Context::New(isolate_, nullptr, global_templ));
 
+  v8::Context::Scope scope(context_holder_->context());
+  isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
   InjectNativeObject();
+  LOG(INFO) << " InjectNativeObject DONE ";
+}
+
+void AndJSCore::doV8Test(const std::string& jsbuf) {
+  for(int i = 0; i < 1; i ++)
+  {
+    v8::Isolate* isolate_ = context_holder_->isolate();
+#if ENABLE_V8_LOCKER
+    LOG(INFO) << " AndJSCore.Run isolate.IsLocked = " << v8::Locker::IsLocked(isolate_) << " IsActive " << v8::Locker::IsActive();
+    v8::Locker locked(isolate_);
+#endif
+    //gin::Runner::Scope scope(this);
+    v8::ScriptOrigin origin(gin::StringToV8(isolate_, "v8test"));
+    gin::TryCatch try_catch(isolate_);
+
+    for(int j = 0; j < 30000; j++) {
+    LOG(INFO) << " JNI_AndJS_V8Test STEP 02 Loop " << j;
+    auto maybe_script = v8::Script::Compile(context_holder_->context(), gin::StringToV8(isolate_, jsbuf), &origin);
+    v8::Local<v8::Script> script;
+    if (!maybe_script.ToLocal(&script)) {
+      LOG(ERROR) << try_catch.GetStackTrace();
+      return;
+    }
+
+    auto maybe = script->Run(context_holder_->context());
+    v8::Local<v8::Value> result;
+    if (!maybe.ToLocal(&result)) {
+      LOG(ERROR) << try_catch.GetStackTrace();
+    }
+    v8::String::Utf8Value utf8(isolate_, result);
+    LOG(INFO) << " JNI_AndJS_V8Test STEP 03 " << *utf8 << " Loop " << j;
+    }
+  }
 }
 
 void AndJSCore::Shutdown() {
-  {
-    HandleScope handle_scope(instance_->isolate());
-    Local<Context>::New(instance_->isolate(), context_)->Exit();
-    context_.Reset();
-  }
-  instance_->isolate()->Exit();
-  isolate_ = NULL;
+  v8::Isolate* isolate_ = instance_->isolate();
+#if ENABLE_V8_LOCKER
+  v8::Locker locked(isolate_);
+#endif
   instance_.reset();
+  LOG(INFO) << " AndJSCore Shutdown instance " << instance_;
 }
 
 bool AndJSCore::InjectNativeObject() {
+  v8::Isolate* isolate_ = context_holder_->isolate();
+#if ENABLE_V8_LOCKER
+  LOG(INFO) << " InjectNativeObject IsLocked = " << v8::Locker::IsLocked(isolate_);
+  v8::Locker locked(isolate_);
+#endif
   v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Context> context = context_.Get(isolate_);
-
-  v8::Context::Scope context_scope(context);
-  v8::Local<v8::Object> global = context->Global();
-
   gin::Handle<AdbLog> adb = AdbLog::Create(isolate_);
-  v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, "adb"), adb.ToV8());
+  v8::Maybe<bool> result = global()->Set(context_holder_->context(), gin::StringToV8(isolate_, "adb"), adb.ToV8());
 
   gin::Handle<JSCrypto> jscrypto = JSCrypto::Create(isolate_);
-  result = global->Set(context, gin::StringToV8(isolate_, "jscrypto"), jscrypto.ToV8());
+  result = global()->Set(context_holder_->context(), gin::StringToV8(isolate_, "jscrypto"), jscrypto.ToV8());
   return !result.IsNothing() && result.FromJust();
 }
 
@@ -227,19 +284,26 @@ void AndJSCore::LoadJSBuf(JNIEnv* env,
                           const base::android::JavaParamRef<jobject>& jcaller,
                           const base::android::JavaParamRef<jstring>& jsbuf) {
   std::string buf(ConvertJavaStringToUTF8(env, jsbuf));
-  Run(buf);
+  thread_->task_runner()->PostTask(FROM_HERE, base::BindRepeating(&AndJSCore::Run, base::Unretained(this), buf, "_membuf.js_"));
+}
+
+void AndJSCore::loadJSFileTask(const std::string& jspath) {
+  std::string buf;
+  base::FilePath filepath(jspath);
+
+  if(base::ReadFileToString(filepath, &buf)) {
+    for(int i = 0; i < 10000; i ++) {
+      Run(buf, filepath.BaseName().value());
+      LOG(INFO) << " loadJSFileTask loop:" << i;
+    }
+  }
 }
 
 void AndJSCore::LoadJSFile(JNIEnv* env,
                            const base::android::JavaParamRef<jobject>& jcaller,
                            const base::android::JavaParamRef<jstring>& jsfile) {
-    std::string jspath (ConvertJavaStringToUTF8(env, jsfile));
-    std::string buf;
-
-    base::FilePath filepath(jspath);
-    if(base::ReadFileToString(filepath, &buf)) {
-      Run(buf);
-    }
+  std::string jspath (ConvertJavaStringToUTF8(env, jsfile));
+  thread_->task_runner()->PostTask(FROM_HERE, base::BindRepeating(&AndJSCore::loadJSFileTask, base::Unretained(this), jspath));
 }
 
 void AndJSCore::Shutdown(JNIEnv* env,
@@ -247,62 +311,103 @@ void AndJSCore::Shutdown(JNIEnv* env,
   Shutdown();
 }
 
-bool AndJSCore::InjectObject(std::string& name,
-                             const base::android::JavaRef<jobject>& jobject,
-                             const base::android::JavaRef<jclass>&  annotation_clazz) {
-  v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Context> context = context_.Get(isolate_);
+scoped_refptr<content::GinJavaBoundObject> AndJSCore::GetObject(content::GinJavaBoundObject::ObjectID object_id) {
+  // Can be called on any thread.
+  base::AutoLock locker(objects_lock_);
+  auto iter = objects_.find(object_id);
+  if (iter != objects_.end())
+    return iter->second;
+  LOG(ERROR) << "AndJSCore: Unknown object: " << object_id;
+  return nullptr;
+}
 
-  v8::Context::Scope context_scope(context);
-  v8::Local<v8::Object> global = context->Global();
+v8::Local<v8::Value> AndJSCore::InjectObject(const base::android::JavaRef<jobject>& jobject,
+                                             const base::android::JavaRef<jclass>&  annotation_clazz) {
 
   JNIEnv* env = base::android::AttachCurrentThread();
   JavaObjectWeakGlobalRef ref(env, jobject.obj());
 
   scoped_refptr<content::GinJavaBoundObject> bound_object = content::GinJavaBoundObject::CreateNamed(ref, annotation_clazz);
-  GinJavaBridgeObject* object = new GinJavaBridgeObject(isolate_, bound_object);
+  content::GinJavaBoundObject::ObjectID object_id;
+  {
+    base::AutoLock locker(objects_lock_);
+    object_id = next_object_id_++;
+    objects_[object_id] = bound_object;
+  }
+  GinJavaBridgeObject* object = new GinJavaBridgeObject(this, object_id);
+
+  v8::Isolate* isolate_ = context_holder_->isolate();
+#if ENABLE_V8_LOCKER
+  v8::Locker locked(isolate_);
+#endif
+  v8::EscapableHandleScope handle_scope(isolate_);
+
+  LOG(INFO) << " Inject Anonymous Object " << object;
   gin::Handle<GinJavaBridgeObject> bridge_object = gin::CreateHandle(isolate_, object);
+  LOG(INFO) << " Inject Anonymous Object " << "  bridge_object " << object;
   if(!bridge_object.IsEmpty()) {
-    v8::Maybe<bool> result = global->Set(context, gin::StringToV8(isolate_, name), bridge_object.ToV8());
+    return handle_scope.Escape(bridge_object.ToV8());
+  }
+  return handle_scope.Escape(v8::Undefined(isolate_));
+}
+ 
+bool AndJSCore::InjectObject(std::string& name,
+                             const base::android::JavaRef<jobject>& jobject,
+                             const base::android::JavaRef<jclass>&  annotation_clazz) {
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  JavaObjectWeakGlobalRef ref(env, jobject.obj());
+
+  scoped_refptr<content::GinJavaBoundObject> bound_object = content::GinJavaBoundObject::CreateNamed(ref, annotation_clazz);
+  content::GinJavaBoundObject::ObjectID object_id;
+  {
+    base::AutoLock locker(objects_lock_);
+    object_id = next_object_id_++;
+    objects_[object_id] = bound_object;
+  }
+  GinJavaBridgeObject* object = new GinJavaBridgeObject(this, object_id);
+
+  v8::Isolate* isolate_ = context_holder_->isolate();
+  #if ENABLE_V8_LOCKER
+  v8::Locker locked(isolate_);
+  #endif
+  gin::Runner::Scope scope(this);
+
+  gin::Handle<GinJavaBridgeObject> bridge_object = gin::CreateHandle(isolate_, object);
+  LOG(INFO) << " InjectJavaObject " << name << "  bridge_object " << object;
+  if(!bridge_object.IsEmpty()) {
+    v8::Maybe<bool> result = global()->Set(context_holder_->context(), gin::StringToV8(isolate_, name), bridge_object.ToV8());
     return !result.IsNothing() && result.FromJust();
   }
   return false;
 }
 
-void AndJSCore::Run(std::string& jsbuf) {
-  v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Context> context = context_.Get(isolate_);
-  v8::Local<v8::String> source = gin::StringToV8(isolate_, jsbuf);
+void AndJSCore::Run(const std::string& jsbuf, const std::string& resource_name) {
+  v8::Isolate* isolate_ = context_holder_->isolate();
+#if ENABLE_V8_LOCKER
+    v8::Locker locked(isolate_);
+#endif
+  gin::Runner::Scope scope(this);
+  gin::TryCatch try_catch(isolate_);
+  v8::ScriptOrigin origin(gin::StringToV8(isolate_, resource_name));
 
-  v8::TryCatch try_catch(isolate_);
-  v8::Local<v8::Script> script = v8::Script::Compile(context, source).ToLocalChecked();
-  //v8::Local<v8::Script> script = v8::Script::Compile(context, source).FromMaybe(v8::Local<v8::Value>());
-  //if(try_catch.HasCaught()) {
-  //  LOG(INFO) << " Compile " << gin::V8ToString(isolate, try_catch.Message()->Get());
-  //}
-  //script->Run(context).ToLocalChecked();
-  script->Run(context).FromMaybe(v8::Local<v8::Value>());
-  if(try_catch.HasCaught()) {
-    LOG(ERROR) << gin::V8ToString(isolate_, try_catch.Message()->Get());
+  auto maybe_script = v8::Script::Compile(context_holder_->context(), gin::StringToV8(isolate_, jsbuf), &origin);
+  v8::Local<v8::Script> script;
+  if (!maybe_script.ToLocal(&script)) {
+    LOG(ERROR) << try_catch.GetStackTrace();
+    return;
+  }
+
+  auto maybe = script->Run(context_holder_->context());
+  v8::Local<v8::Value> result;
+  if (!maybe.ToLocal(&result)) {
+    LOG(ERROR) << try_catch.GetStackTrace();
   }
 }
 
-v8::Local<v8::Script> AndJSCore::CompileJS(std::string& jsbuf) {
-  v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Context> context = context_.Get(isolate_);
-  v8::Local<v8::String> source = gin::StringToV8(isolate_, jsbuf);
-
-  v8::TryCatch try_catch(isolate_);
-  v8::Local<v8::Script> script = v8::Script::Compile(context, source).ToLocalChecked();
-  return script;
+gin::ContextHolder* AndJSCore::GetContextHolder() {
+  return context_holder_.get();
 }
 
-void AndJSCore::RunScript(v8::Local<v8::Script> script) {
-  v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::Context> context = context_.Get(isolate_);
-  //v8::Local<v8::Value> obj = script->Run(context).ToLocalChecked();
-  script->Run(context).ToLocalChecked();
-}
-
-AndJSCore::~AndJSCore() {}
+AndJSCore::~AndJSCore() = default;
 }

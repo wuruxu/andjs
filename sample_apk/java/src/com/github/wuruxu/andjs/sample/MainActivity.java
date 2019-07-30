@@ -64,17 +64,22 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 		obj = new MyObject();
-		mJSInstance.injectObject(obj, "myobject", null);
-		mJSInstance.injectObject(this, "myactivity", null);
+		mJSInstance.injectObject(obj, "myobject");
+		mJSInstance.injectObject(this, "myactivity");
     }
 
 	@CalledByJavascript
 	void updateTitle(String version) {
-		if(!mTitleIsUpdated) {
-			String str = getTitle().toString();
-			str += "@v8(" + version+")";
-			setTitle(str);
-			mTitleIsUpdated = true;
-		}
+        if(!mTitleIsUpdated) {
+            this.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    String str = getTitle().toString();
+                    str += "@v8(" + version+")";
+                    setTitle(str);
+                }
+            });
+            mTitleIsUpdated = true;
+        }
 	}
 }
