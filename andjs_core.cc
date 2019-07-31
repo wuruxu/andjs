@@ -248,12 +248,8 @@ void AndJSCore::doV8Test(const std::string& jsbuf) {
 }
 
 void AndJSCore::Shutdown() {
-  v8::Isolate* isolate_ = instance_->isolate();
-#if ENABLE_V8_LOCKER
-  v8::Locker locked(isolate_);
-#endif
-  instance_.reset();
   LOG(INFO) << " AndJSCore Shutdown instance " << instance_;
+  instance_.reset();
 }
 
 bool AndJSCore::InjectNativeObject() {
@@ -292,10 +288,7 @@ void AndJSCore::loadJSFileTask(const std::string& jspath) {
   base::FilePath filepath(jspath);
 
   if(base::ReadFileToString(filepath, &buf)) {
-    for(int i = 0; i < 10000; i ++) {
-      Run(buf, filepath.BaseName().value());
-      LOG(INFO) << " loadJSFileTask loop:" << i;
-    }
+    Run(buf, filepath.BaseName().value());
   }
 }
 
