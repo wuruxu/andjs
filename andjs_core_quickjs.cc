@@ -130,7 +130,7 @@ static JSValue jscrypto_seal_open(JSContext *ctx, JSValueConst this_val, int arg
   return JS_UNDEFINED;
 }
 
-static const JSCFunctionListEntry jscrypto_funcs[] = {
+static const JSCFunctionListEntry jscrypto_method_funcs[] = {
     JS_CFUNC_MAGIC_DEF("seal", 1, jscrypto_seal_open, 0),
     JS_CFUNC_MAGIC_DEF("open", 1, jscrypto_seal_open, 1),
 };
@@ -191,6 +191,44 @@ static JSValue adb_error(JSContext *ctx, JSValueConst this_val, int argc, JSValu
   return JS_UNDEFINED;
 }
 
+static JSValue jscrypto_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv) {
+  if(argc == 1) {
+    const char* str = JS_ToCString(ctx, argv[0]);
+    if(str) {
+      JSValue obj = JS_NewObjectClass(ctx, jscrypto_class_id);
+      if(JS_IsException(obj)) return obj;
+
+      JSCrypto* crypto = new JSCrypto(str);
+      if(crypto == NULL) return JS_EXCEPTION;
+
+      JS_SetOpaque(obj, crypto);
+      return obj;
+    }
+  }
+  return JS_EXCEPTION;
+}
+
+static JSValue js_Crypto_key(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+  if(argc == 1) {
+    const char* str = JS_ToCString(ctx, argv[0]);
+    if(str) {
+      JSValue obj = JS_NewObjectClass(ctx, jscrypto_class_id);
+      if(JS_IsException(obj)) return obj;
+
+      JSCrypto* crypto = new JSCrypto(str);
+      if(crypto == NULL) return JS_EXCEPTION;
+
+      JS_SetOpaque(obj, crypto);
+      return obj;
+    }
+  }
+  return JS_EXCEPTION;
+}
+
+static const JSCFunctionListEntry jscrypto_funcs[] = {
+  JS_CFUNC_DEF("key", 1, js_Crypto_key ),
+};
+
 bool AndJSCore::InjectNativeObject() {
   JSValue global, adb, jscrypto;
   global = JS_GetGlobalObject(ctx_);
@@ -208,10 +246,14 @@ bool AndJSCore::InjectNativeObject() {
   JS_NewClassID(&jscrypto_class_id);
   JS_NewClass(JS_GetRuntime(ctx_), jscrypto_class_id, &jscrypto_class);
   proto = JS_NewObject(ctx_);
-  JS_SetPropertyFunctionList(ctx_, proto, jscrypto_funcs, countof(jscrypto_funcs));
+  JS_SetPropertyFunctionList(ctx_, proto, jscrypto_method_funcs, countof(jscrypto_method_funcs));
   JS_SetClassProto(ctx_, jscrypto_class_id, proto);
 
   JS_SetPropertyStr(ctx_, global, "getJSCrypto", JS_NewCFunction(ctx_, get_jscrypto_object, "getJSCrypto", 1));
+
+  JSValueConst jscrypto_obj;
+  jscrypto_obj = JS_NewGlobalCConstructor(ctx_, "JSCrypto", jscrypto_constructor, 1, proto);
+  JS_SetPropertyFunctionList(ctx_, jscrypto_obj, jscrypto_funcs, 1);
 
   JS_FreeValue(ctx_, global);
   return true;
