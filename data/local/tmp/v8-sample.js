@@ -1,0 +1,16 @@
+myobject.doLog('This is a JSFile string');
+var msg = myobject.getMessage();
+adb.info(msg);
+var home = myobject.getMyHome();
+home.printRect(0, 0, 512, 512);
+var homemsg = home.getMessage();
+adb.info(homemsg);
+var version = get_v8_version();
+myactivity.updateTitle(version);
+var s = get_v8_version();
+'Hello' + ' V8, version:' + s;
+jscrypto.setkey('mykey');
+var demostring = 'This is jscrypto demo string';
+var encrypt = jscrypto.seal(demostring);
+var output = jscrypto.open(encrypt);
+adb.info(output);
