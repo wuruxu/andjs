@@ -33,6 +33,8 @@ import android.content.Context;
 @JNINamespace("andjs")
 public class AndJS extends Object {
 	private long mNativeJSCore;
+	private boolean mShutdown;
+	private Object locker;
 
 	public AndJS(Context context) {
 		ContextUtils.initApplicationContext(context);
@@ -42,6 +44,8 @@ public class AndJS extends Object {
         	Log.e("AndJS" , "Unable to load native libraries.", pie);
 		}
 		mNativeJSCore = nativeInitAndJS();
+		mShutdown = false;
+		locker = new Object();
 	}
 
 	public void loadJSBuf(String jsbuf) {
@@ -56,9 +60,18 @@ public class AndJS extends Object {
 		nativeInjectObject(mNativeJSCore, obj, name, CalledByJavascript.class);
 	}
 
+	public void shutdown() {
+		synchronized(locker) {
+			if(!mShutdown) {
+				nativeShutdown(mNativeJSCore);
+				mShutdown = true;
+			}
+		}
+	}
+
 	@Override
 	public void finalize() {
-		nativeShutdown(mNativeJSCore);
+		shutdown();
 	}
 
 	private native long nativeInitAndJS();

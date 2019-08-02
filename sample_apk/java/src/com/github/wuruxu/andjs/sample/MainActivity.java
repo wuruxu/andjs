@@ -36,7 +36,6 @@ public class MainActivity extends AppCompatActivity {
 		bundle.putString("Object", "MainActivity");
 		mFirebaseAnalytics.logEvent("onCreate", bundle);
 
-		mJSInstance = new AndJS(this);
 		findViewById(R.id.loadjs_button).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View view) {
@@ -64,9 +63,16 @@ public class MainActivity extends AppCompatActivity {
 			}
 		});
 		obj = new MyObject();
+		mJSInstance = new AndJS(this);
 		mJSInstance.injectObject(obj, "myobject");
 		mJSInstance.injectObject(this, "myactivity");
     }
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		mJSInstance.shutdown();
+	}
 
 	@CalledByJavascript
 	void updateTitle(String version) {

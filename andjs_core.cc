@@ -396,6 +396,21 @@ void AndJSCore::Run(const std::string& jsbuf, const std::string& resource_name) 
   if (!maybe.ToLocal(&result)) {
     LOG(ERROR) << try_catch.GetStackTrace();
   }
+
+  {
+    gin::Runner::Scope scope(this);
+    v8::Local<v8::Function> func;
+    if(gin::ConvertFromV8(isolate_, result, &func)) {
+      LOG(INFO) << " result IsFunction() " << func->IsFunction();
+      if(func->IsFunction()) {
+        gin::TryCatch func_try_catch(isolate_);
+        v8::Local<v8::Value> ret;
+        if(!v8::Function::Cast(*func)->Call(context_holder_->context(), global(), 0, nullptr).ToLocal(&ret)) {
+          LOG(ERROR) << func_try_catch.GetStackTrace();
+        }
+      }
+    }
+  }
 }
 
 gin::ContextHolder* AndJSCore::GetContextHolder() {
